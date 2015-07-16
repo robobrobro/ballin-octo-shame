@@ -30,3 +30,30 @@
 
 # Debug files
 *.dSYM/
+
+# SCons database
+.sconsign.dblite
+
+# Compiled/optimized/DLL Python files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Python distribution / packaging
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Log files
+*.log

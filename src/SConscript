@@ -1,0 +1,4 @@
+Import('env')
+
+program = env.Program(env['PROGRAM'], Glob('*.c'))
+env.Depends(program, env['PYTHON_LIB'])
