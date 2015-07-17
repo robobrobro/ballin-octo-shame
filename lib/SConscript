@@ -11,7 +11,8 @@ def run_command(cmd, *args, **kwargs):
 
 def build_python(target, source, env):
     # Configure 
-    run_command('./configure LDFLAGS="-static -static-libgcc" CPPFLAGS="-static"', cwd=env['PYTHON_PATH'], shell=True)
+    # TODO: required? run_command('./configure LDFLAGS="-static -static-libgcc" CPPFLAGS="-static"', cwd=env['PYTHON_PATH'], shell=True)
+    run_command('./configure', cwd=env['PYTHON_PATH'], shell=True)
 
     # Make
     run_command('make {target}'.format(target=os.path.basename(env['PYTHON_LIB'])), cwd=env['PYTHON_PATH'], shell=True)

@@ -11,7 +11,7 @@ PROGRAM = 'octo'
 
 env = Environment(
     CPPPATH=[PYTHON_PATH, os.path.join(PYTHON_PATH, 'Include')],
-    CCFLAGS='-fno-strict-aliasing -g -)2 -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes',
+    CCFLAGS='-fno-strict-aliasing -fno-common -g -O2 -DNDEBUG -g -fwrapv -O3 -Wall -Wstrict-prototypes',
     LIBS=[File(PYTHON_LIB), 'pthread', 'dl', 'util', 'm'],
     PYTHON_PATH=PYTHON_PATH,
     PYTHON_LIB=PYTHON_LIB,
