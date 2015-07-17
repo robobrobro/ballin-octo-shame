@@ -1,4 +1,10 @@
+Makefile
+Makefile.pre
+Misc/python.pc
 Modules/_testembed
+Modules/config.c
 Parser/pgen
+config.status
+pyconfig.h
 python-config*
 python.exe*
