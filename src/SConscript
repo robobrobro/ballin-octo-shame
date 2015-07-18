@@ -1,4 +1,20 @@
+import os
+
 Import('env')
 
-program = env.Program(env['PROGRAM'], Glob('*.c'))
+SOURCE_EXT = '*.c'
+
+'''
+sources = None
+for dirpath, dirnames, filenames in os.walk(env['SRC_DIR']):
+    if sources is None:
+        sources = Glob(os.path.join(dirpath, Glob(SOURCE_EXT)))
+    else:
+        sources += Glob(os.path.join(dirpath, Glob(SOURCE_EXT)))
+
+program = env.Program(env['PROGRAM'], sources)
+'''
+
+program = env.Program(env['PROGRAM'], Glob(SOURCE_EXT) + Glob(os.path.join('utils', SOURCE_EXT)))
 env.Depends(program, env['PYTHON_LIB'])
+

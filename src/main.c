@@ -1,26 +1,39 @@
 #include <stdlib.h>
+#include "debug.h"
 #include "scripting.h"
+#include "utils/path.h"
+#include "utils/string.h"
 
-int main(int argc, char ** argv);
-int init(int argc, char ** argv);
-void shutdown(void);
+static int init(int argc, char ** argv);
+static void shutdown(void);
 
 int main(int argc, char ** argv)
 {
-    if (!init(argc, argv)) return 1;
+    if (!init(argc, argv))
+    {
+        DEBUG_ERROR(L"initialization failed\n");
+        return 1;
+    }
+
     return 0;
 }
 
-int init(int argc, char ** argv)
+static int init(int argc, char ** argv)
 {
+    wchar_t program_name[260] = {0};
+
     atexit(shutdown);
 
-    scripting_init(L"octo");
+    /* Initialize scripting engine */
+    char_to_wchar(argv[0], program_name);
+    if (!scripting_init(program_name)) return 0;
+
+    DEBUG_INFO(L"initialization succeeded\n");
 
     return 1;
 }
 
-void shutdown(void)
+static void shutdown(void)
 {
     scripting_shutdown();
 }

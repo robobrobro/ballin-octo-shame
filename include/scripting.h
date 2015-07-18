@@ -3,8 +3,8 @@
 
 #include <wchar.h>
 
-void scripting_init(wchar_t * program_name);
-void scripting_shutdown();
+int scripting_init(wchar_t * program_name);
+void scripting_shutdown(void);
 
 #endif
 

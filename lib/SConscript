@@ -4,6 +4,9 @@ import sys
 
 Import('env')
 
+PLUGINS_DIR = os.path.join(env['BUILD_DIR'], 'plugins')
+ENCODINGS_INIT_PY = os.path.join(PLUGINS_DIR, 'encodings', '__init__.py')
+
 def run_command(cmd, *args, **kwargs):
     returncode = subprocess.call(cmd, **kwargs)
     if returncode != 0:
@@ -11,12 +14,35 @@ def run_command(cmd, *args, **kwargs):
 
 def build_python(target, source, env):
     # Configure 
-    # TODO: required? run_command('./configure LDFLAGS="-static -static-libgcc" CPPFLAGS="-static"', cwd=env['PYTHON_PATH'], shell=True)
+    #run_command('./configure LDFLAGS="-static -static-libgcc" CPPFLAGS="-static"', cwd=env['PYTHON_PATH'], shell=True)
     run_command('./configure', cwd=env['PYTHON_PATH'], shell=True)
 
     # Make
-    run_command('make {target}'.format(target=os.path.basename(env['PYTHON_LIB'])), cwd=env['PYTHON_PATH'], shell=True)
+    run_command('make', cwd=env['PYTHON_PATH'], shell=True)
+    run_command('make {target}'.format(target=os.path.basename(env['PYTHON_LIB'])),
+        cwd=env['PYTHON_PATH'], shell=True)
 
-python_lib = env.Command(target=env['PYTHON_LIB'],
-    source=Glob(os.path.join(env['PYTHON_PATH'], '*.c')),
-    action=Action(build_python, 'Building \033[33m%s\033[0m...' % env['PYTHON_LIB']))
+def copy_modules(target, source, env):
+    # Copy builtin modules to the build's plugins directory
+    if not os.path.exists(PLUGINS_DIR):
+        run_command('mkdir -p {builtins}'.format(builtins=PLUGINS_DIR), shell=True)
+    run_command('cp -rf {modules} {builtins}'.format(modules=os.path.join('Lib', '*'),
+        builtins=PLUGINS_DIR), cwd=env['PYTHON_PATH'], shell=True)
+    run_command('cp -rf {modules} {builtins}'.format(modules=os.path.join('build', 'lib*', '*'),
+        builtins=PLUGINS_DIR), cwd=env['PYTHON_PATH'], shell=True)
+
+sources = Glob(os.path.join(env['PYTHON_PATH'], '*.c')) + \
+    Glob(os.path.join(env['PYTHON_PATH'], 'Module', 'Setup')) + \
+    Glob(os.path.join(env['PYTHON_PATH'], 'setup.py'))
+
+python_lib = env.Command(target=env['PYTHON_LIB'], source=sources,
+    action=Action(build_python, 'Building \033[33m%s\033[0m...' % env['PYTHON_DIR']))
+
+env.Clean(python_lib, os.path.join(os.path.dirname(env['PYTHON_LIB']), 'python.exe'))
+env.Clean(python_lib, env['PYTHON_LIB'])
+builtins = env.Command(target=ENCODINGS_INIT_PY, source=sources,
+    action=Action(copy_modules, 'Copying \033[33m%s\033[0m builtin modules...' % env['PYTHON_DIR']))
+
+env.Depends(builtins, env['PYTHON_LIB'])
+env.Clean(builtins, PLUGINS_DIR)
+
