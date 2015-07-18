@@ -6,5 +6,7 @@
 int scripting_init(wchar_t * program_name);
 void scripting_shutdown(void);
 
+int scripting_load(const char *module);
+
 #endif
 

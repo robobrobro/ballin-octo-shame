@@ -14,7 +14,7 @@ int main(int argc, char ** argv)
         DEBUG_ERROR(L"initialization failed\n");
         return 1;
     }
-
+    
     return 0;
 }
 
