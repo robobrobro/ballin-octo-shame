@@ -1,5 +1,6 @@
 #include "scripting.h"
 #include "debug.h"
+#include "utils/color.h"
 #include "utils/path.h"
 #include "utils/string.h"
 
@@ -174,7 +175,8 @@ int scripting_load(const char *module)
                 }
                 else
                 {
-                    DEBUG_DEBUG(L"module[\033[1m%d\033[0m] = \033[33m%ls\033[0m\n", module_idx, other_module_name);
+                    DEBUG_DEBUG(L"module[%ls%d%ls] = %ls%ls%ls\n", COLOR_BOLD, module_idx, COLOR_END,
+                            COLOR_YELLOW, other_module_name, COLOR_END);
 
                     char_to_wchar(module, module_name);
                     if (wcsncmp(module_name, other_module_name, fmin(wcslen(module_name),
@@ -199,13 +201,13 @@ int scripting_load(const char *module)
         if (!pModule)
         {
             /* TODO get exception */
-            DEBUG_ERROR(L"failed to load module: \033[31m%s\033[0m\n", module);
+            DEBUG_ERROR(L"failed to load module: %ls%s%ls\n", COLOR_RED, module, COLOR_END);
             return 0;
         }
         
         if (PyList_Append(g_module_list, pModule) < 0)
         {
-            DEBUG_ERROR(L"failed to add module to list: \033[31m%s\033[0m\n", module);
+            DEBUG_ERROR(L"failed to add module to list: %ls%s%ls\n", COLOR_RED, module, COLOR_END);
             Py_DECREF(pModule);
             return 0;
         }
@@ -218,14 +220,14 @@ int scripting_load(const char *module)
         if (!pModule)
         {
             /* TODO get exception */
-            DEBUG_ERROR(L"failed to reload module: \033[31m%s\033[0m\n", module);
+            DEBUG_ERROR(L"failed to reload module: %ls%s%ls\n", COLOR_RED, module, COLOR_END);
             return 0;
         }
     }
 
     Py_DECREF(pModule);
 
-    DEBUG_INFO(L"loaded module: \033[33m%s\033[0m\n", module);
+    DEBUG_INFO(L"loaded module: %ls%s%ls\n", COLOR_YELLOW, module, COLOR_END);
 
     return 1;
 }
@@ -248,10 +250,10 @@ static void debug_python_info(void)
 
     tmp = Py_GetProgramName();
     if (tmp)
-        DEBUG_DEBUG(L"\033[33m%-20ls\033[0m %ls\n", L"Program Name", tmp);
+        DEBUG_DEBUG(L"%ls%-20ls%ls %ls\n", COLOR_YELLOW, L"Program Name", COLOR_END, tmp);
     tmp = Py_GetProgramFullPath();
     if (tmp)
-        DEBUG_DEBUG(L"\033[33m%-20ls\033[0m %ls\n", L"Program Full Path", tmp);
+        DEBUG_DEBUG(L"%ls%-20ls%ls %ls\n", COLOR_YELLOW, L"Program Full Path", COLOR_END, tmp);
     strncpy(version, Py_GetVersion(), sizeof(version) - 1);
     len = strlen(version);
     for (idx = 0; idx < len; ++idx)
@@ -263,19 +265,19 @@ static void debug_python_info(void)
             break;
         }
     }
-    DEBUG_DEBUG(L"\033[33m%-20ls\033[0m %s\n", L"Version", version);
+    DEBUG_DEBUG(L"%ls%-20ls%ls %s\n", COLOR_YELLOW, L"Version", COLOR_END, version);
     if (compiler)
-        DEBUG_DEBUG(L"\033[33m%-20ls\033[0m %s\n", L"Compiler", compiler);
+        DEBUG_DEBUG(L"%ls%-20ls%ls %s\n", COLOR_YELLOW, L"Compiler", COLOR_END, compiler);
     tmp = Py_GetPath();
     if (tmp)
-        DEBUG_DEBUG(L"\033[33m%-20ls\033[0m %ls\n", L"Module Path", tmp);
+        DEBUG_DEBUG(L"%ls%-20ls%ls %ls\n", COLOR_YELLOW, L"Module Path", COLOR_END, tmp);
     tmp = Py_GetPrefix();
     if (tmp)
-        DEBUG_DEBUG(L"\033[33m%-20ls\033[0m %ls\n", L"Prefix", tmp);
+        DEBUG_DEBUG(L"%ls%-20ls%ls %ls\n", COLOR_YELLOW, L"Prefix", COLOR_END, tmp);
     tmp = Py_GetExecPrefix();
     if (tmp)
-        DEBUG_DEBUG(L"\033[33m%-20ls\033[0m %ls\n", L"Exec Prefix", tmp);
-    DEBUG_DEBUG(L"\033[33m%-20ls\033[0m %s\n", L"Platform", Py_GetPlatform());
+        DEBUG_DEBUG(L"%ls%-20ls%ls %ls\n", COLOR_YELLOW, L"Exec Prefix", COLOR_END, tmp);
+    DEBUG_DEBUG(L"%ls%-20ls%ls %s\n", COLOR_YELLOW, L"Platform", COLOR_END, Py_GetPlatform());
    
     pSysPath = PySys_GetObject("path");
     if (!pSysPath)
@@ -303,7 +305,7 @@ static void debug_python_info(void)
             else
             {
                 swprintf(temp, sizeof(temp) / sizeof(wchar_t) - 1, L"sys.path[%d]", path_idx);
-                DEBUG_DEBUG(L"\033[33m%-20ls\033[0m %ls\n", temp, path); 
+                DEBUG_DEBUG(L"%ls%-20ls%ls %ls\n", COLOR_YELLOW, temp, COLOR_END, path); 
                 PyMem_Free(path);
             }
         }
