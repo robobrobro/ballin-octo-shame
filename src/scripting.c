@@ -5,6 +5,7 @@
 #include "utils/string.h"
 
 #include <Python.h>
+#include <dirent.h>
 #include <math.h>
 
 static PyObject *g_module_list = NULL;
@@ -52,6 +53,7 @@ int scripting_init(wchar_t * program_name)
     pSysPath = PySys_GetObject("path");
     if (!pSysPath)
     {
+        debug_python_info();
         free(program_dir);
         /* TODO get exception */
         DEBUG_ERROR(L"failed to get Python sys.path\n");
@@ -63,15 +65,17 @@ int scripting_init(wchar_t * program_name)
     
     if (!plugins_dir)
     {
+        debug_python_info();
         DEBUG_ERROR(L"failed to get plugins path\n");
         return 0;
     }
 
     pPluginsDir = PyUnicode_FromWideChar(plugins_dir, wcslen(plugins_dir));
-    free(plugins_dir);
 
     if (!pPluginsDir)
     {
+        free(plugins_dir);
+        debug_python_info();
         /* TODO get exception */
         DEBUG_ERROR(L"failed to decode plugins path\n");
         return 0;
@@ -79,17 +83,30 @@ int scripting_init(wchar_t * program_name)
 
     if (PyList_Append(pSysPath, pPluginsDir) < 0)
     {
-        DEBUG_ERROR(L"failed to append plugins path to Python sys.path\n");
+        free(plugins_dir);
+        debug_python_info();
         Py_DECREF(pPluginsDir);
+        DEBUG_ERROR(L"failed to append plugins path to Python sys.path\n");
         return 0;
     }
         
     Py_DECREF(pPluginsDir);
+    
+    debug_python_info();
 
     /* Create modules list */
     g_module_list = PyList_New(0);
 
-    debug_python_info();
+    /* Load all modules in the plugins directory */
+    if (!scripting_load_dir(plugins_dir))
+    {
+        free(plugins_dir);
+        debug_python_info();
+        DEBUG_ERROR(L"failed to load plugins\n");
+        return 0;
+    }
+    
+    free(plugins_dir);
 
     return 1;
 }
@@ -113,12 +130,12 @@ void scripting_shutdown(void)
     Py_Finalize();
 }
 
-int scripting_load(const char *module)
+int scripting_load(const wchar_t * module)
 {
     PyObject *pModuleName = NULL, *pModule = NULL, *pOtherModule = NULL, *pOtherModuleName = NULL;
     PyObject *pAttrName = NULL;
-    Py_ssize_t module_list_len = 0, module_idx = 0, other_module_name_len = 0;
-    wchar_t *other_module_name = 0, module_name[260] = {0};
+    Py_ssize_t module_len = 0, module_list_len = 0, module_idx = 0, other_module_name_len = 0;
+    wchar_t *other_module_name = 0;
 
     if (!Py_IsInitialized())
     {
@@ -126,11 +143,12 @@ int scripting_load(const char *module)
         return 0;
     }
 
-    pModuleName = PyUnicode_FromString(module); 
+    module_len = wcsnlen(module, PATH_MAX_LEN);
+    pModuleName = PyUnicode_FromWideChar(module, module_len); 
     if (!pModuleName)
     {
         /* TODO get exception */
-        DEBUG_ERROR(L"failed to decode module name: %s\n", module);
+        DEBUG_ERROR(L"failed to decode module name: %ls\n", module);
         return 0;
     }
 
@@ -178,9 +196,8 @@ int scripting_load(const char *module)
                     DEBUG_DEBUG(L"module[%ls%d%ls] = %ls%ls%ls\n", COLOR_BOLD, module_idx, COLOR_END,
                             COLOR_YELLOW, other_module_name, COLOR_END);
 
-                    char_to_wchar(module, module_name);
-                    if (wcsncmp(module_name, other_module_name, fmin(wcslen(module_name),
-                                    wcslen(other_module_name))) == 0)
+                    if (wcsncmp(module, other_module_name, fmin(module_len,
+                                    wcsnlen(other_module_name, PATH_MAX_LEN))) == 0)
                     {
                         pModule = pOtherModule;
                     }
@@ -201,13 +218,13 @@ int scripting_load(const char *module)
         if (!pModule)
         {
             /* TODO get exception */
-            DEBUG_ERROR(L"failed to load module: %ls%s%ls\n", COLOR_RED, module, COLOR_END);
+            DEBUG_ERROR(L"failed to load module: %ls%ls%ls\n", COLOR_RED, module, COLOR_END);
             return 0;
         }
         
         if (PyList_Append(g_module_list, pModule) < 0)
         {
-            DEBUG_ERROR(L"failed to add module to list: %ls%s%ls\n", COLOR_RED, module, COLOR_END);
+            DEBUG_ERROR(L"failed to add module to list: %ls%ls%ls\n", COLOR_RED, module, COLOR_END);
             Py_DECREF(pModule);
             return 0;
         }
@@ -220,16 +237,54 @@ int scripting_load(const char *module)
         if (!pModule)
         {
             /* TODO get exception */
-            DEBUG_ERROR(L"failed to reload module: %ls%s%ls\n", COLOR_RED, module, COLOR_END);
+            DEBUG_ERROR(L"failed to reload module: %ls%ls%ls\n", COLOR_RED, module, COLOR_END);
             return 0;
         }
     }
 
     Py_DECREF(pModule);
 
-    DEBUG_INFO(L"loaded module: %ls%s%ls\n", COLOR_YELLOW, module, COLOR_END);
+    DEBUG_INFO(L"loaded module: %ls%ls%ls\n", COLOR_YELLOW, module, COLOR_END);
 
     return 1;
+}
+   
+int scripting_load_dir(const wchar_t * path)
+{
+    int retval = 1;
+    DIR *dir = NULL;
+    char mb_path[PATH_MAX_LEN + 1] = {0};
+    struct dirent *ent = NULL;
+    wchar_t ent_name[PATH_MAX_LEN + 1] = {0}, *ent_name_no_ext = NULL;
+
+    wcstombs(mb_path, path, PATH_MAX_LEN);
+
+    dir = opendir(mb_path);
+    if (!dir)
+    {
+        DEBUG_ERROR(L"failed to open plugins directory: %s\n", strerror(errno));
+        return 0;
+    }
+
+    while ((ent = readdir(dir)))
+    {
+        char_to_wchar(ent->d_name, ent_name);
+        if (path_has_ext(ent_name, L".py"))
+        {
+            DEBUG_DEBUG(L"found plugin: %ls%s%ls\n", COLOR_YELLOW, ent->d_name, COLOR_END);
+
+            ent_name_no_ext = path_trim_ext(ent_name);
+            if (ent_name_no_ext)
+            {
+                retval = retval && scripting_load(ent_name_no_ext);
+                free(ent_name_no_ext);
+            }
+        }
+    }
+
+    closedir(dir);
+
+    return retval;
 }
 
 static void debug_python_info(void)
