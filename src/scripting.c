@@ -1,5 +1,6 @@
 #include "scripting.h"
 #include "debug.h"
+#include "plugin.h"
 #include "utils/color.h"
 #include "utils/path.h"
 #include "utils/string.h"
@@ -101,7 +102,6 @@ int scripting_init(wchar_t * program_name)
     if (!scripting_load_dir(plugins_dir))
     {
         free(plugins_dir);
-        debug_python_info();
         DEBUG_ERROR(L"failed to load plugins\n");
         return 0;
     }
@@ -133,7 +133,7 @@ void scripting_shutdown(void)
 int scripting_load(const wchar_t * module)
 {
     PyObject *pModuleName = NULL, *pModule = NULL, *pOtherModule = NULL, *pOtherModuleName = NULL;
-    PyObject *pAttrName = NULL;
+    PyObject *pAttrName = NULL, *pResult = NULL;
     Py_ssize_t module_len = 0, module_list_len = 0, module_idx = 0, other_module_name_len = 0;
     wchar_t *other_module_name = 0;
 
@@ -242,9 +242,14 @@ int scripting_load(const wchar_t * module)
         }
     }
 
+    /* Call the module's load function, as specified by the plugin API */
+    pResult = plugin_call_function(pModule, PLUGIN_API_FUNC_LOAD, NULL, NULL);
     Py_DECREF(pModule);
+    
+    if (!pResult) return 0;
+    Py_DECREF(pResult);
 
-    DEBUG_INFO(L"loaded module: %ls%ls%ls\n", COLOR_YELLOW, module, COLOR_END);
+    DEBUG_INFO(L"successfully loaded module: %ls%ls%ls\n", COLOR_YELLOW, module, COLOR_END);
 
     return 1;
 }

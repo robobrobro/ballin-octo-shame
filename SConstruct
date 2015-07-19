@@ -42,7 +42,6 @@ if operating_system not in OPERATING_SYSTEM_DICT.keys():
     sys.exit(2)
 
 BUILD_DIR = os.path.join(BUILD_DIR, operating_system)
-PYTHON_LIB = os.path.join(PYTHON_PATH, OPERATING_SYSTEM_DICT[operating_system]['python'])
 
 # Determine target configuration
 TARGET_DICT = {
@@ -62,10 +61,11 @@ if target not in TARGET_CHOICES:
     sys.exit(2)
 
 BUILD_DIR = os.path.join(BUILD_DIR, target)
+PYTHON_LIB = os.path.join(BUILD_DIR, OPERATING_SYSTEM_DICT[operating_system]['python'])
 
-CCFLAGS = '-fno-strict-aliasing -fno-common -fdiagnostics-color=auto -O2 -fwrapv -O3 -Wall -Wstrict-prototypes'
+CCFLAGS = '-fno-strict-aliasing -fno-common -fdiagnostics-color=auto -fwrapv -Wall -Wstrict-prototypes'
 if target == 'debug': CCFLAGS += ' -DDEBUG -g3 -ggdb3'
-else: CCFLAGS += ' -DNDEBUG -s'
+else: CCFLAGS += ' -O2 -O3 -DNDEBUG -s'
 
 env = Environment(
     CC=OPERATING_SYSTEM_DICT[operating_system]['CC'],

@@ -13,13 +13,19 @@ def run_command(cmd, *args, **kwargs):
         sys.exit(returncode)
 
 def build_python(target, source, env):
+    target_path = target[0].abspath
+    target_filename = os.path.basename(target_path)
+
     # Configure 
     # TODO required? run_command('./configure LDFLAGS="-static -static-libgcc" CPPFLAGS="-static"', cwd=env['PYTHON_PATH'], shell=True)
     run_command('./configure', cwd=env['PYTHON_PATH'], shell=True)
 
     # Make
     run_command('make', cwd=env['PYTHON_PATH'], shell=True)
-    run_command('make {target}'.format(target=os.path.basename(env['PYTHON_LIB'])),
+    run_command('make {target}'.format(target=target_filename), cwd=env['PYTHON_PATH'], shell=True)
+
+    # Copy lib to build dir
+    run_command('cp -f {lib} {target}'.format(lib=target_filename, target=target_path),
         cwd=env['PYTHON_PATH'], shell=True)
 
 def copy_modules(target, source, env):
@@ -31,18 +37,17 @@ def copy_modules(target, source, env):
     run_command('cp -rf {modules} {builtins}'.format(modules=os.path.join('build', 'lib*', '*'),
         builtins=BUILTINS_DIR), cwd=env['PYTHON_PATH'], shell=True)
 
+target = env['PYTHON_LIB']
 sources = Glob(os.path.join(env['PYTHON_PATH'], '*.c')) + \
     Glob(os.path.join(env['PYTHON_PATH'], 'Module', 'Setup')) + \
     Glob(os.path.join(env['PYTHON_PATH'], 'setup.py'))
 
-python_lib = env.Command(target=env['PYTHON_LIB'], source=sources,
+python_lib = env.Command(target=target, source=sources,
     action=Action(build_python, 'Building \033[33m%s\033[0m...' % env['PYTHON_DIR']))
+env.Clean(python_lib, target)
 
-env.Clean(python_lib, os.path.join(os.path.dirname(env['PYTHON_LIB']), 'python.exe'))
-env.Clean(python_lib, env['PYTHON_LIB'])
 builtins = env.Command(target=ENCODINGS_INIT_PY, source=sources,
     action=Action(copy_modules, 'Copying \033[33m%s\033[0m builtin modules...' % env['PYTHON_DIR']))
-
-env.Depends(builtins, env['PYTHON_LIB'])
+env.Depends(builtins, target)
 env.Clean(builtins, BUILTINS_DIR)
 
