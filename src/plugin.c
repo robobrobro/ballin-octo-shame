@@ -24,8 +24,7 @@ PyObject * plugin_call_function(PyObject *pModule, const char *function, PyObjec
         pFunction = PyObject_GetAttrString(pModule, function);
         if (!pFunction)
         {
-            /* TODO get exception */
-            DEBUG_ERROR(L"failed to get module function: %ls%ls.%ls%ls\n", COLOR_RED,
+            DEBUG_ERROR(L"failed to get module function: %ls%ls.%s%ls\n", COLOR_RED,
                     module_name ? module_name : L"<unknown>", PLUGIN_API_FUNC_LOAD, COLOR_END);
             if (module_name) PyMem_Free(module_name);
             return NULL;
@@ -33,8 +32,7 @@ PyObject * plugin_call_function(PyObject *pModule, const char *function, PyObjec
 
         if (!PyCallable_Check(pFunction))
         {
-            /* TODO get exception */
-            DEBUG_ERROR(L"module function %ls%ls.%ls%ls is not callable\n", COLOR_RED,
+            DEBUG_ERROR(L"module function %ls%ls.%s%ls is not callable\n", COLOR_RED,
                     module_name ? module_name : L"<unknown>", PLUGIN_API_FUNC_LOAD, COLOR_END);
             if (module_name) PyMem_Free(module_name);
             return NULL;
@@ -58,8 +56,7 @@ PyObject * plugin_call_function(PyObject *pModule, const char *function, PyObjec
 
         if (!pResult)
         {
-            /* TODO get exception */
-            DEBUG_ERROR(L"call to module function %ls%ls.%ls%ls failed\n", COLOR_RED,
+            DEBUG_ERROR(L"call to module function %ls%ls.%s%ls failed\n", COLOR_RED,
                     module_name ? module_name : L"<unknown>", PLUGIN_API_FUNC_LOAD, COLOR_END);
             if (module_name) PyMem_Free(module_name);
             return NULL;

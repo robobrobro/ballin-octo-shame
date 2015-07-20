@@ -1,5 +1,6 @@
 #include "scripting.h"
 #include "debug.h"
+#include "list.h"
 #include "plugin.h"
 #include "utils/color.h"
 #include "utils/path.h"
@@ -9,7 +10,8 @@
 #include <dirent.h>
 #include <math.h>
 
-static PyObject *g_module_list = NULL;
+static list_t *g_module_list = NULL; 
+static void module_list_destroy_callback(void * data);
 static void debug_python_info(void);
 
 int scripting_init(wchar_t * program_name)
@@ -96,7 +98,13 @@ int scripting_init(wchar_t * program_name)
     debug_python_info();
 
     /* Create modules list */
-    g_module_list = PyList_New(0);
+    g_module_list = list_create();
+    if (!g_module_list)
+    {
+        free(plugins_dir);
+        DEBUG_ERROR(L"failed to create plugins list\n");
+        return 0;
+    }
 
     /* Load all modules in the plugins directory */
     if (!scripting_load_dir(plugins_dir))
@@ -123,7 +131,7 @@ void scripting_shutdown(void)
     /* Destroy module list */
     if (g_module_list)
     {
-        Py_DECREF(g_module_list);
+        list_destroy(g_module_list, module_list_destroy_callback);
         g_module_list = NULL;
     }
 
@@ -132,10 +140,13 @@ void scripting_shutdown(void)
 
 int scripting_load(const wchar_t * module)
 {
-    PyObject *pModuleName = NULL, *pModule = NULL, *pOtherModule = NULL, *pOtherModuleName = NULL;
-    PyObject *pAttrName = NULL, *pResult = NULL;
-    Py_ssize_t module_len = 0, module_list_len = 0, module_idx = 0, other_module_name_len = 0;
-    wchar_t *other_module_name = 0;
+    PyObject *pModuleName = NULL, *pModule = NULL, *pResult = NULL;
+    Py_ssize_t module_len = 0;
+    list_t *list_curr = NULL;
+    plugin_t *plugin = NULL;
+    unsigned int module_idx = 0;
+        
+    DEBUG_DEBUG(L"attempting to load module %ls%ls%ls\n", COLOR_YELLOW, module, COLOR_END);
 
     if (!Py_IsInitialized())
     {
@@ -144,99 +155,92 @@ int scripting_load(const wchar_t * module)
     }
 
     module_len = wcsnlen(module, PATH_MAX_LEN);
-    pModuleName = PyUnicode_FromWideChar(module, module_len); 
-    if (!pModuleName)
-    {
-        /* TODO get exception */
-        DEBUG_ERROR(L"failed to decode module name: %ls\n", module);
-        return 0;
-    }
 
     /* Determine if the module needs to be added to the list or reloaded */
     if (!g_module_list)
     {
-        Py_DECREF(pModuleName);
         DEBUG_ERROR(L"failed to add module to list: module list is NULL\n");
         return 0;
     }
 
-    /* Search the module list for the module */
-    pAttrName = PyUnicode_FromString("__name__");
-    if (!pAttrName)
+    /* Search for the module in the module list. If it exists, reload it */
+    for (list_curr = g_module_list->front, module_idx = 0; list_curr; list_curr = list_curr->next, ++module_idx)
     {
-        Py_DECREF(pModuleName);
-        DEBUG_ERROR(L"failed to encode \"__name__\"\n");
-        return 0;
-    }
+        plugin = (plugin_t *)list_curr->data;
+        if (!plugin)
+        {
+            DEBUG_ERROR(L"failed to get plugin from module list\n");
+            continue;
+        }
 
-    module_list_len = PyList_Size(g_module_list);
-    for (module_idx = 0; module_idx < module_list_len; ++module_idx)
-    {
-        pOtherModule = PyList_GetItem(g_module_list, module_idx);
-        if (!pOtherModule)
+        if (!plugin->pModule)
         {
             DEBUG_ERROR(L"failed to get module from module list\n");
+            continue;
         }
-        else
+
+        DEBUG_DEBUG(L"module[%ls%d%ls] = %ls%ls%ls\n", COLOR_BOLD, module_idx, COLOR_END, COLOR_YELLOW,
+                plugin->module_name, COLOR_END);
+
+        if (wcsncmp(module, plugin->module_name, fmin(module_len, wcsnlen(plugin->module_name, PATH_MAX_LEN))) == 0)
         {
-            pOtherModuleName = PyObject_GetAttr(pOtherModule, pAttrName);
-            if (!pOtherModuleName)
-            {
-                DEBUG_ERROR(L"failed to get module's name from module list\n");
-            }
-            else
-            {
-                other_module_name = PyUnicode_AsWideCharString(pOtherModuleName, &other_module_name_len);
-                if (!other_module_name)
-                {
-                    DEBUG_ERROR(L"failed to decode module's name from module list\n");
-                }
-                else
-                {
-                    DEBUG_DEBUG(L"module[%ls%d%ls] = %ls%ls%ls\n", COLOR_BOLD, module_idx, COLOR_END,
-                            COLOR_YELLOW, other_module_name, COLOR_END);
-
-                    if (wcsncmp(module, other_module_name, fmin(module_len,
-                                    wcsnlen(other_module_name, PATH_MAX_LEN))) == 0)
-                    {
-                        pModule = pOtherModule;
-                    }
-
-                    PyMem_Free(other_module_name);
-                }
-
-                Py_DECREF(pOtherModuleName);
-            }
+            pModule = plugin->pModule;
+            break;
         }
     }
 
     if (!pModule)
     {
+        DEBUG_DEBUG(L"module not found: importing module %ls%ls%ls\n", COLOR_YELLOW, module, COLOR_END);
+
+        /* Convert name of the module to a Python unicode string */
+        pModuleName = PyUnicode_FromWideChar(module, module_len); 
+        if (!pModuleName)
+        {
+            DEBUG_ERROR(L"failed to encode module name: %ls%ls%ls\n", COLOR_RED, module, COLOR_END);
+            return 0;
+        }
+
+        /* Import the module */
         pModule = PyImport_Import(pModuleName);
         Py_DECREF(pModuleName);
     
         if (!pModule)
         {
-            /* TODO get exception */
             DEBUG_ERROR(L"failed to load module: %ls%ls%ls\n", COLOR_RED, module, COLOR_END);
             return 0;
         }
-        
-        if (PyList_Append(g_module_list, pModule) < 0)
+       
+        /* Append the module to the plugin list */
+        plugin = (plugin_t *)malloc(sizeof(plugin_t));
+        if (!plugin)
         {
-            DEBUG_ERROR(L"failed to add module to list: %ls%ls%ls\n", COLOR_RED, module, COLOR_END);
+            DEBUG_ERROR(L"failed to allocate memory for plugin for module: %ls%ls%ls\n",
+                    COLOR_RED, module, COLOR_END);
+            return 0;
+        }
+
+        plugin->pModule = pModule;
+        memset(plugin->module_name, 0, sizeof(plugin->module_name));
+        wcsncpy(plugin->module_name, module, sizeof(plugin->module_name) / sizeof(wchar_t) - 1);
+
+        if (!list_append(g_module_list, plugin))
+        {
             Py_DECREF(pModule);
+            free(plugin);
+            DEBUG_ERROR(L"failed to add module to list: %ls%ls%ls\n", COLOR_RED, module, COLOR_END);
             return 0;
         }
     }
     else
     {
-        Py_DECREF(pModuleName);
+        DEBUG_DEBUG(L"module found: reloading module %ls%ls%ls\n", COLOR_YELLOW, module, COLOR_END);
+
+        /* The module has already been imported, so reload it */
         pModule = PyImport_ReloadModule(pModule);
         
         if (!pModule)
         {
-            /* TODO get exception */
             DEBUG_ERROR(L"failed to reload module: %ls%ls%ls\n", COLOR_RED, module, COLOR_END);
             return 0;
         }
@@ -244,7 +248,6 @@ int scripting_load(const wchar_t * module)
 
     /* Call the module's load function, as specified by the plugin API */
     pResult = plugin_call_function(pModule, PLUGIN_API_FUNC_LOAD, NULL, NULL);
-    Py_DECREF(pModule);
     
     if (!pResult) return 0;
     Py_DECREF(pResult);
@@ -281,7 +284,7 @@ int scripting_load_dir(const wchar_t * path)
             ent_name_no_ext = path_trim_ext(ent_name);
             if (ent_name_no_ext)
             {
-                retval = retval && scripting_load(ent_name_no_ext);
+                retval = scripting_load(ent_name_no_ext) && retval;
                 free(ent_name_no_ext);
             }
         }
@@ -290,6 +293,18 @@ int scripting_load_dir(const wchar_t * path)
     closedir(dir);
 
     return retval;
+}
+
+static void module_list_destroy_callback(void * data)
+{
+    plugin_t *plugin = NULL;
+    
+    if (!data) return;
+
+    plugin = (plugin_t *)data;
+    Py_XDECREF(plugin->pModule);
+    plugin->pModule = NULL;
+    memset(plugin->module_name, 0, sizeof(plugin->module_name));
 }
 
 static void debug_python_info(void)
