@@ -145,6 +145,7 @@ int scripting_load(const wchar_t * module)
     list_t *list_curr = NULL;
     plugin_t *plugin = NULL;
     unsigned int module_idx = 0;
+    int retval = 0;
         
     DEBUG_DEBUG(L"attempting to load module %ls%ls%ls\n", COLOR_YELLOW, module, COLOR_END);
 
@@ -179,8 +180,10 @@ int scripting_load(const wchar_t * module)
             continue;
         }
 
-        DEBUG_DEBUG(L"module[%ls%d%ls] = %ls%ls%ls\n", COLOR_BOLD, module_idx, COLOR_END, COLOR_YELLOW,
-                plugin->module_name, COLOR_END);
+        DEBUG_DEBUG(L"module[%ls%d%ls] = %ls%ls%ls (%ls%lsloaded%ls)\n", COLOR_BOLD, module_idx, COLOR_END,
+                COLOR_YELLOW, plugin->module_name, COLOR_END,
+                plugin->loaded ? COLOR_GREEN : COLOR_RED,
+                plugin->loaded ? L"" : L"not ", COLOR_END);
 
         if (wcsncmp(module, plugin->module_name, fmin(module_len, wcsnlen(plugin->module_name, PATH_MAX_LEN))) == 0)
         {
@@ -223,6 +226,7 @@ int scripting_load(const wchar_t * module)
         plugin->pModule = pModule;
         memset(plugin->module_name, 0, sizeof(plugin->module_name));
         wcsncpy(plugin->module_name, module, sizeof(plugin->module_name) / sizeof(wchar_t) - 1);
+        plugin->loaded = 0;
 
         if (!list_append(g_module_list, plugin))
         {
@@ -249,12 +253,34 @@ int scripting_load(const wchar_t * module)
     /* Call the module's load function, as specified by the plugin API */
     pResult = plugin_call_function(pModule, PLUGIN_API_FUNC_LOAD, NULL, NULL);
     
-    if (!pResult) return 0;
+    if (!pResult)
+    {
+        plugin->loaded = 0;
+        return 0; 
+    }
+
+    if (!PyBool_Check(pResult))
+    {
+        Py_DECREF(pResult);
+        plugin->loaded = 0;
+        DEBUG_ERROR(L"module function %ls%ls.%s%ls failed to return a Boolean\n", COLOR_RED, module,
+                PLUGIN_API_FUNC_LOAD, COLOR_END);
+        return 0;
+    }
+
+    plugin->loaded = retval = pResult == Py_True;
     Py_DECREF(pResult);
 
-    DEBUG_INFO(L"successfully loaded module: %ls%ls%ls\n", COLOR_YELLOW, module, COLOR_END);
+    if (!retval)
+    {
+        DEBUG_ERROR(L"failed to load module: %ls%ls%ls\n", COLOR_RED, module, COLOR_END);
+    }
+    else
+    {
+        DEBUG_INFO(L"successfully loaded module: %ls%ls%ls\n", COLOR_YELLOW, module, COLOR_END);
+    }
 
-    return 1;
+    return retval;
 }
    
 int scripting_load_dir(const wchar_t * path)

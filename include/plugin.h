@@ -22,6 +22,7 @@ typedef struct
 {
     PyObject *pModule;
     wchar_t module_name[PATH_MAX_LEN + 1];
+    int loaded;
 } plugin_t;
 
 PyObject * plugin_call_function(PyObject *pModule, const char *function, PyObject *pArgs, PyObject *pKwargs);
