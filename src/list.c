@@ -83,6 +83,7 @@ int list_append(list_t * list, void * data)
     back->next->front = list->front;
     back->next->back = back;
     back->next->prev = back;
+    list->back = back->next;
 
     /* Set the back of every list element to the new back */
     for (curr = list->front; curr->next; curr = curr->next)
