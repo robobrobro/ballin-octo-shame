@@ -1,8 +1,9 @@
-#include "list.h"
-#include "debug.h"
-#include "utils/color.h"
 #include <stddef.h>
 #include <stdlib.h>
+
+#include "debug.h"
+#include "utils/color.h"
+#include "utils/list.h"
 
 list_t * list_create(void)
 {

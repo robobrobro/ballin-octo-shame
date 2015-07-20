@@ -1,14 +1,14 @@
-#include "scripting.h"
-#include "debug.h"
-#include "list.h"
-#include "plugin.h"
-#include "utils/color.h"
-#include "utils/path.h"
-#include "utils/string.h"
-
 #include <Python.h>
 #include <dirent.h>
 #include <math.h>
+
+#include "debug.h"
+#include "scripting/plugin.h"
+#include "scripting/scripting.h"
+#include "utils/color.h"
+#include "utils/list.h"
+#include "utils/path.h"
+#include "utils/string.h"
 
 static list_t *g_module_list = NULL; 
 static void module_list_destroy_callback(void * data);
@@ -337,7 +337,7 @@ static void debug_python_info(void)
 {
 #ifdef DEBUG
     wchar_t *tmp = NULL, *path = NULL, temp[30] = {0};
-    int idx = 0;
+    size_t idx = 0;
     size_t len = 0;
     char version[1000] = {0}, *compiler = NULL;
     PyObject *pSysPath = NULL, *pPath = NULL;

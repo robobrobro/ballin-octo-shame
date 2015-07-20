@@ -1,5 +1,5 @@
-#include "plugin.h"
 #include "debug.h"
+#include "scripting/plugin.h"
 #include "utils/color.h"
 
 PyObject * plugin_call_function(PyObject *pModule, const char *function, PyObject *pArgs, PyObject *pKwargs)

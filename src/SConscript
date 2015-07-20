@@ -2,23 +2,17 @@ import os
 
 Import('env')
 
-SOURCE_EXT = '*.c'
+SOURCE_EXTS = ['*.c', '*.cpp']
 
 def setup_plugins_dir(target, source, env):
     plugins_dir = target[0].abspath
     if not os.path.exists(plugins_dir):
         os.makedirs(plugins_dir)
 
-'''
-sources = None
+sources = []
 for dirpath, dirnames, filenames in os.walk(env['SRC_DIR']):
-    if sources is None:
-        sources = Glob(os.path.join(dirpath, Glob(SOURCE_EXT)))
-    else:
-        sources += Glob(os.path.join(dirpath, Glob(SOURCE_EXT)))
-'''
-
-sources = Glob(SOURCE_EXT) + Glob(os.path.join('utils', SOURCE_EXT))
+    for ext in SOURCE_EXTS:
+        sources.append(Glob(os.path.join(dirpath, ext)))
 
 program = env.Program(env['PROGRAM'], sources)
 env.Depends(program, env['PYTHON_LIB'])

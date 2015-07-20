@@ -1,6 +1,3 @@
-#include "utils/path.h"
-#include "utils/string.h"
-
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,6 +11,9 @@
 #   define get_cwd(b, l) getcwd((b), (size_t)(l))
 #   define PATH_SEP L"/"
 #endif
+
+#include "utils/path.h"
+#include "utils/string.h"
 
 static int is_path_sep(wchar_t c);
 

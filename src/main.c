@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include "debug.h"
-#include "scripting.h"
+#include "scripting/scripting.h"
 #include "utils/path.h"
 #include "utils/string.h"
 

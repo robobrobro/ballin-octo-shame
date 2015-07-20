@@ -3,7 +3,7 @@ import sys
 
 BUILD_DIR = os.path.join(Dir('#').abspath, 'build')
 INCLUDE_DIR = os.path.join(Dir('#').abspath, 'include')
-SRC_DIR = './src'
+SRC_DIR = os.path.join(Dir('#').abspath, 'src')
 LIB_DIR = os.path.join(Dir('#').abspath, 'lib')
 
 PROGRAM = 'octo'
@@ -17,17 +17,17 @@ OPERATING_SYSTEM_DICT = {
     'linux': {
         'names': ['linux', 'lin', 'lnx'],
         'python': '{ver}.a'.format(ver=PYTHON_VER),
-        'CC': 'gcc',
+        'CC': 'g++',
     },
     'mac': {
         'names': ['mac', 'osx'],
         'python': '{ver}.a'.format(ver=PYTHON_VER),
-        'CC': 'gcc-5',
+        'CC': 'g++-5',
     },
     'windows': {
         'names': ['windows', 'win'],
         'python': '{ver}.dll'.format(ver=PYTHON_VER),
-        'CC': 'gcc',
+        'CC': 'g++',
     },
 }
 
@@ -71,7 +71,10 @@ env = Environment(
     CC=OPERATING_SYSTEM_DICT[operating_system]['CC'],
     CPPPATH=[PYTHON_PATH, os.path.join(PYTHON_PATH, 'Include'), INCLUDE_DIR],
     CCFLAGS=CCFLAGS,
-    LIBS=[File(PYTHON_LIB), 'pthread', 'dl', 'util', 'm'],
+    LIBS=[
+        File(PYTHON_LIB), 'pthread', 'dl', 'util', 'm',
+        'sfml-graphics', 'sfml-window', 'sfml-system', 'sfml-audio',
+    ],
     PYTHON_PATH=PYTHON_PATH,
     PYTHON_LIB=PYTHON_LIB,
     PYTHON_DIR=PYTHON_DIR,
