@@ -5,9 +5,14 @@ Modules/_testembed
 Modules/config.c
 Parser/pgen
 config.status
+confdefs.h
 conftest.h
+conftest.c
+conftest.err
 confdefs.c
 pybuilddir.txt
 pyconfig.h
+python
 python-config*
+python-gdb.py
 python.exe*
