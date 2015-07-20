@@ -65,8 +65,12 @@ PyObject * plugin_call_function(PyObject *pModule, const char *function, PyObjec
     }
     else
     {
-        DEBUG_ERROR(L"module %ls%ls%ls doesn\'t have the function %ls%s%ls\n", COLOR_RED,
-                module_name ? module_name : L"<unknown>", COLOR_END, COLOR_RED, PLUGIN_API_FUNC_LOAD, COLOR_END);
+        /* The module doesn't have a load function, so return True as if it loaded successfully */
+        DEBUG_DEBUG(L"module function %ls%ls.%s%ls not found\n",
+                    COLOR_YELLOW, module_name ? module_name : L"<unknown>",
+                    PLUGIN_API_FUNC_LOAD, COLOR_END);
+        Py_INCREF(Py_True);
+        pResult = Py_True;
     }
             
     if (module_name) PyMem_Free(module_name);
