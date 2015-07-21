@@ -10,6 +10,9 @@
 namespace scripting
 {
 
+const std::wstring BUILTINS_DIR = L".builtins";
+const std::wstring PLUGINS_DIR = L"plugins";
+
 struct ctx_t : public engine::ctx_t
 {
     std::wstring program_name;

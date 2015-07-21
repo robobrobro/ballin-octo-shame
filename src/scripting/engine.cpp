@@ -42,7 +42,7 @@ scripting::Engine::Engine(scripting::ctx_t * ctx)
     std::wstring program_dir = utils::path::get_dir(ctx->program_name);
 
     /* Set Python interpreter's module search path */
-    std::wstring builtins_dir = utils::path::join(program_dir.c_str(), L".builtins", NULL); 
+    std::wstring builtins_dir = utils::path::join(program_dir.c_str(), scripting::BUILTINS_DIR.c_str(), NULL); 
     Py_SetPath(builtins_dir.c_str());
     
     /* Initialize Python interpreter */
@@ -61,7 +61,7 @@ scripting::Engine::Engine(scripting::ctx_t * ctx)
         return;
     }
 
-    std::wstring plugins_dir = utils::path::join(program_dir.c_str(), L"plugins", NULL); 
+    std::wstring plugins_dir = utils::path::join(program_dir.c_str(), scripting::PLUGINS_DIR.c_str(), NULL); 
     
     pPluginsDir = PyUnicode_FromWideChar(plugins_dir.c_str(), plugins_dir.size());
 
@@ -253,9 +253,11 @@ bool scripting::Engine::load_dir(const std::wstring & path)
         return 0;
     }
 
+    DEBUG_DEBUG(L"scanning plugins directory\n");
     while ((ent = readdir(dir)))
     {
         std::wstring ent_name = utils::string::cstr_to_wstr(ent->d_name);
+        DEBUG_DEBUG(L"found file: %ls\n", ent_name.c_str());
         if (utils::path::has_ext(ent_name, L".py"))
         {
             DEBUG_DEBUG(L"found plugin: %ls%s%ls\n", COLOR_WHITE, ent->d_name, COLOR_END);

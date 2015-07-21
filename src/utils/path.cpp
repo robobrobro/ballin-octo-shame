@@ -89,7 +89,7 @@ bool utils::path::has_ext(const std::wstring & path, const std::wstring & ext)
 {
     if (path.size() < ext.size()) return false;
 
-    return path.substr(path.size() - 1 - ext.size(), ext.size()) == ext;
+    return path.substr(path.size() - ext.size(), ext.size()) == ext;
 }
 
 std::wstring utils::path::trim_ext(const std::wstring & path)
