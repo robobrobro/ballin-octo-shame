@@ -61,14 +61,16 @@ scripting::Engine::Engine(scripting::ctx_t * ctx)
     /* Initialize Python interpreter */
     Py_Initialize();
     //Py_InitializeEx(0);
+    this->_initialized = true;
     DEBUG_INFO(L"Python scripting engine initialized\n");
     
     /* Append plugins directory to Python's sys.path */
     pSysPath = PySys_GetObject("path");
     if (!pSysPath)
     {
-        debug_python_info();
         free(program_dir);
+        this->_initialized = false;
+        debug_python_info();
         DEBUG_ERROR(L"failed to get Python sys.path\n");
         return;
     }
@@ -78,6 +80,7 @@ scripting::Engine::Engine(scripting::ctx_t * ctx)
     
     if (!plugins_dir)
     {
+        this->_initialized = false;
         debug_python_info();
         DEBUG_ERROR(L"failed to get plugins path\n");
         return;
@@ -88,6 +91,7 @@ scripting::Engine::Engine(scripting::ctx_t * ctx)
     if (!pPluginsDir)
     {
         free(plugins_dir);
+        this->_initialized = false;
         debug_python_info();
         DEBUG_ERROR(L"failed to decode plugins path\n");
         return;
@@ -96,8 +100,9 @@ scripting::Engine::Engine(scripting::ctx_t * ctx)
     if (PyList_Append(pSysPath, pPluginsDir) < 0)
     {
         free(plugins_dir);
-        debug_python_info();
         Py_DECREF(pPluginsDir);
+        this->_initialized = false;
+        debug_python_info();
         DEBUG_ERROR(L"failed to append plugins path to Python sys.path\n");
         return;
     }
@@ -110,6 +115,7 @@ scripting::Engine::Engine(scripting::ctx_t * ctx)
     if (!this->load_dir(plugins_dir))
     {
         free(plugins_dir);
+        this->_initialized = false;
         DEBUG_ERROR(L"failed to load plugins\n");
         return;
     }
@@ -121,8 +127,6 @@ scripting::Engine::Engine(scripting::ctx_t * ctx)
 
 scripting::Engine::~Engine()
 {
-    if (!this->_initialized) return;
-    
     /* Destroy module list */
     for (std::vector<plugin_t *>::iterator iter = this->_modules.begin(); iter != this->_modules.end(); ++iter)
     {
