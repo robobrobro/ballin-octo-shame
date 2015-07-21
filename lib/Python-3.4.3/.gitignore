@@ -6,8 +6,10 @@ Modules/config.c
 Parser/pgen
 config.status
 confdefs.h
+conftest
 conftest.h
 conftest.c
+conftest.erl
 conftest.err
 confdefs.c
 pybuilddir.txt
