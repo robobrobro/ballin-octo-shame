@@ -1,14 +1,14 @@
 #include "debug.h"
-#include "audio/audio.h"
+#include "audio/engine.h"
 
-AudioEngine::AudioEngine(audio_engine_ctx_t * ctx)
-    : Engine::Engine((engine_ctx_t *)ctx)
+audio::Engine::Engine(audio::ctx_t * ctx)
+    : engine::Engine::Engine((engine::ctx_t *)ctx)
 {
     this->_initialized = true;
     DEBUG_INFO(L"audio engine initialized\n");
 }
 
-AudioEngine::~AudioEngine()
+audio::Engine::~Engine()
 {
     DEBUG_INFO(L"audio engine shut down successfully\n");
 }

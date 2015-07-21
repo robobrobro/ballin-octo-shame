@@ -4,19 +4,22 @@
 #include <wchar.h>
 #include <vector>
 
-#include "engine.h"
+#include "engine/engine.h"
 #include "scripting/plugin.h"
 
-typedef struct : engine_ctx_t
+namespace scripting
+{
+
+struct ctx_t : public engine::ctx_t
 {
     wchar_t * program_name;
-} scripting_engine_ctx_t;
+};
 
-class ScriptingEngine : public Engine
+class Engine : public engine::Engine
 {
     public:
-        ScriptingEngine(scripting_engine_ctx_t * ctx);
-        ~ScriptingEngine();
+        Engine(scripting::ctx_t * ctx);
+        ~Engine();
 
         bool load(const wchar_t * module);
         bool load_dir(const wchar_t * path);
@@ -24,6 +27,8 @@ class ScriptingEngine : public Engine
     protected:
         std::vector<plugin_t *> _modules;
 };
+
+}   // namespace scripting
 
 #endif
 

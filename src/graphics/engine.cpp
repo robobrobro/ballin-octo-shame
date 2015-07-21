@@ -1,14 +1,14 @@
 #include "debug.h"
-#include "graphics/graphics.h"
+#include "graphics/engine.h"
 
-GraphicsEngine::GraphicsEngine(graphics_engine_ctx_t * ctx)
-    : Engine::Engine((engine_ctx_t *)ctx)
+graphics::Engine::Engine(graphics::ctx_t * ctx)
+    : engine::Engine::Engine((engine::ctx_t *)ctx)
 {
     this->_initialized = true;
     DEBUG_INFO(L"graphics engine initialized\n");
 }
 
-GraphicsEngine::~GraphicsEngine()
+graphics::Engine::~Engine()
 {
     DEBUG_INFO(L"graphics engine shut down successfully\n");
 }

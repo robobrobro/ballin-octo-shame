@@ -1,10 +1,10 @@
 #include "debug.h"
-#include "game.h"
+#include "game/engine.h"
 #include "utils/color.h"
 #include "utils/path.h"
 
-Game::Game(game_ctx_t * ctx)
-    : Engine::Engine((engine_ctx_t *)ctx)
+game::Engine::Engine(game::ctx_t * ctx)
+    : engine::Engine::Engine((engine::ctx_t *)ctx)
     , _audio_engine(NULL)
     , _graphics_engine(NULL)
     , _scripting_engine(NULL)
@@ -16,8 +16,8 @@ Game::Game(game_ctx_t * ctx)
     }
 
     /* Initialize graphics engine */
-    graphics_engine_ctx_t graphics_engine_ctx;
-    this->_graphics_engine = new GraphicsEngine(&graphics_engine_ctx);
+    graphics::ctx_t graphics_engine_ctx;
+    this->_graphics_engine = new graphics::Engine(&graphics_engine_ctx);
     if (!this->_graphics_engine)
     {
         DEBUG_ERROR(L"%ls%s%ls\n", COLOR_RED, strerror(errno), COLOR_END);
@@ -31,8 +31,8 @@ Game::Game(game_ctx_t * ctx)
     }
     
     /* Initialize audio engine */
-    audio_engine_ctx_t audio_engine_ctx;
-    this->_audio_engine = new AudioEngine(&audio_engine_ctx);
+    audio::ctx_t audio_engine_ctx;
+    this->_audio_engine = new audio::Engine(&audio_engine_ctx);
     if (!this->_audio_engine)
     {
         DEBUG_ERROR(L"%ls%s%ls\n", COLOR_RED, strerror(errno), COLOR_END);
@@ -46,9 +46,9 @@ Game::Game(game_ctx_t * ctx)
     }
     
     /* Initialize scripting engine */
-    scripting_engine_ctx_t scripting_engine_ctx;
+    scripting::ctx_t scripting_engine_ctx;
     scripting_engine_ctx.program_name = ctx->program_name;
-    this->_scripting_engine = new ScriptingEngine(&scripting_engine_ctx);
+    this->_scripting_engine = new scripting::Engine(&scripting_engine_ctx);
     if (!this->_scripting_engine)
     {
         DEBUG_ERROR(L"%ls%s%ls\n", COLOR_RED, strerror(errno), COLOR_END);
@@ -65,7 +65,7 @@ Game::Game(game_ctx_t * ctx)
     DEBUG_INFO(L"game engine initialized successfully\n");
 }
 
-Game::~Game()
+game::Engine::~Engine()
 {
     if (!this->_initialized) return;
 
@@ -94,7 +94,7 @@ Game::~Game()
     DEBUG_INFO(L"game engine shut down\n");
 }
 
-bool Game::run()
+bool game::Engine::run()
 {
     if (!this->_initialized)
     {

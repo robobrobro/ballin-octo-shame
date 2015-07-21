@@ -5,15 +5,15 @@
 
 #include "debug.h"
 #include "scripting/plugin.h"
-#include "scripting/scripting.h"
+#include "scripting/engine.h"
 #include "utils/color.h"
 #include "utils/path.h"
 #include "utils/string.h"
 
 static void debug_python_info(void);
 
-ScriptingEngine::ScriptingEngine(scripting_engine_ctx_t * ctx)
-    : Engine::Engine((engine_ctx_t *)ctx)
+scripting::Engine::Engine(scripting::ctx_t * ctx)
+    : engine::Engine::Engine((engine::ctx_t *)ctx)
 {
     wchar_t *program_dir = NULL, *builtins_dir = NULL, *plugins_dir = NULL;
     PyObject *pSysPath = NULL, *pPluginsDir = NULL;
@@ -119,7 +119,7 @@ ScriptingEngine::ScriptingEngine(scripting_engine_ctx_t * ctx)
     this->_initialized = true;
 }
 
-ScriptingEngine::~ScriptingEngine()
+scripting::Engine::~Engine()
 {
     if (!this->_initialized) return;
     
@@ -140,7 +140,7 @@ ScriptingEngine::~ScriptingEngine()
     this->_initialized = false;
 }
 
-bool ScriptingEngine::load(const wchar_t * module)
+bool scripting::Engine::load(const wchar_t * module)
 {
     PyObject *pModuleName = NULL, *pModule = NULL, *pResult = NULL;
     Py_ssize_t module_len = 0;
@@ -268,7 +268,7 @@ bool ScriptingEngine::load(const wchar_t * module)
     return retval;
 }
    
-bool ScriptingEngine::load_dir(const wchar_t * path)
+bool scripting::Engine::load_dir(const wchar_t * path)
 {
     DIR *dir = NULL;
     char mb_path[PATH_MAX_LEN + 1] = {0};

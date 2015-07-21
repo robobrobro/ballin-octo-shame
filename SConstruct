@@ -17,17 +17,17 @@ OPERATING_SYSTEM_DICT = {
     'linux': {
         'names': ['linux', 'lin', 'lnx'],
         'python': '{ver}.a'.format(ver=PYTHON_VER),
-        'CC': 'g++',
+        'CXX': 'g++',
     },
     'mac': {
         'names': ['mac', 'osx'],
         'python': '{ver}.a'.format(ver=PYTHON_VER),
-        'CC': 'g++-5',
+        'CXX': 'g++-5',
     },
     'windows': {
         'names': ['windows', 'win'],
         'python': '{ver}.dll'.format(ver=PYTHON_VER),
-        'CC': 'g++',
+        'CXX': 'g++',
     },
 }
 
@@ -63,12 +63,12 @@ if target not in TARGET_CHOICES:
 BUILD_DIR = os.path.join(BUILD_DIR, target)
 PYTHON_LIB = os.path.join(BUILD_DIR, OPERATING_SYSTEM_DICT[operating_system]['python'])
 
-CCFLAGS = '-fno-strict-aliasing -fno-common -fdiagnostics-color=auto -fwrapv -Wall -Wstrict-prototypes'
+CCFLAGS = '-fno-strict-aliasing -fno-common -fdiagnostics-color=auto -fwrapv -Wall -std=c++11'
 if target == 'debug': CCFLAGS += ' -DDEBUG -g3 -ggdb3'
 else: CCFLAGS += ' -O2 -O3 -DNDEBUG -s'
 
 env = Environment(
-    CC=OPERATING_SYSTEM_DICT[operating_system]['CC'],
+    CXX=OPERATING_SYSTEM_DICT[operating_system]['CXX'],
     CPPPATH=[PYTHON_PATH, os.path.join(PYTHON_PATH, 'Include'), INCLUDE_DIR],
     CCFLAGS=CCFLAGS,
     LIBS=[

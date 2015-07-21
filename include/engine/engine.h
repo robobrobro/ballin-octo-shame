@@ -1,14 +1,17 @@
 #ifndef __OCTO_ENGINE_H__
 #define __OCTO_ENGINE_H__
 
-typedef struct
+namespace engine
 {
-} engine_ctx_t;
+
+struct ctx_t
+{
+};
 
 class Engine
 {
     public:
-        Engine(engine_ctx_t * ctx) : _initialized(false) {}
+        Engine(engine::ctx_t * ctx) : _initialized(false) {}
         virtual ~Engine() {}
 
         virtual bool run() { return true; }
@@ -18,6 +21,8 @@ class Engine
     protected:
         bool _initialized;
 };
+
+}   // namespace engine
 
 #endif
 

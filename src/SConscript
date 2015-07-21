@@ -3,8 +3,6 @@ import re
 
 Import('env')
 
-SOURCE_EXTS = ['*.c', '*.cpp']
-
 def setup_plugins_dir(target, source, env):
     plugins_dir = target[0].abspath
     if not os.path.exists(plugins_dir):
@@ -12,8 +10,7 @@ def setup_plugins_dir(target, source, env):
 
 sources = []
 for dirpath, _, _ in os.walk(env['SRC_DIR']):
-    for ext in SOURCE_EXTS:
-        sources.append(Glob(os.path.join(re.sub(r'^%s/*' % env['SRC_DIR'], '', dirpath), ext)))
+    sources.append(Glob(os.path.join(re.sub(r'^%s/*' % env['SRC_DIR'], '', dirpath), '*.cpp')))
 
 program = env.Program(env['PROGRAM'], sources)
 env.Depends(program, env['PYTHON_LIB'])
