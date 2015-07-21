@@ -349,12 +349,6 @@ static void debug_python_info(void)
     tmp = Py_GetPath();
     if (tmp)
         DEBUG_DEBUG(L"%ls%-20ls%ls %ls\n", COLOR_YELLOW, L"Module Path", COLOR_END, tmp);
-    tmp = Py_GetPrefix();
-    if (tmp)
-        DEBUG_DEBUG(L"%ls%-20ls%ls %ls\n", COLOR_YELLOW, L"Prefix", COLOR_END, tmp);
-    tmp = Py_GetExecPrefix();
-    if (tmp)
-        DEBUG_DEBUG(L"%ls%-20ls%ls %ls\n", COLOR_YELLOW, L"Exec Prefix", COLOR_END, tmp);
     DEBUG_DEBUG(L"%ls%-20ls%ls %s\n", COLOR_YELLOW, L"Platform", COLOR_END, Py_GetPlatform());
    
     pSysPath = PySys_GetObject("path");
