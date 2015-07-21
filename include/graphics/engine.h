@@ -1,5 +1,5 @@
-#ifndef __OCTO_GRAPHICS_GRAPHICS_H__
-#define __OCTO_GRAPHICS_GRAPHICS_H__
+#ifndef __OCTO_GRAPHICS_ENGINE_H__
+#define __OCTO_GRAPHICS_ENGINE_H__
 
 #include "engine/engine.h"
 

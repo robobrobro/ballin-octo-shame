@@ -1,5 +1,5 @@
-#ifndef __OCTO_SCRIPTING_H__
-#define __OCTO_SCRIPTING_H__
+#ifndef __OCTO_SCRIPTING_ENGINE_H__
+#define __OCTO_SCRIPTING_ENGINE_H__
 
 #include <wchar.h>
 #include <vector>
@@ -25,7 +25,7 @@ class Engine : public engine::Engine
         bool load_dir(const wchar_t * path);
 
     protected:
-        std::vector<plugin_t *> _modules;
+        std::vector<scripting::plugin::plugin_t *> _modules;
 };
 
 }   // namespace scripting

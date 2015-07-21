@@ -1,5 +1,5 @@
-#ifndef __OCTO_ENGINE_H__
-#define __OCTO_ENGINE_H__
+#ifndef __OCTO_ENGINE_ENGINE_H__
+#define __OCTO_ENGINE_ENGINE_H__
 
 namespace engine
 {

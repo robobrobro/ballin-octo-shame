@@ -128,7 +128,7 @@ scripting::Engine::Engine(scripting::ctx_t * ctx)
 scripting::Engine::~Engine()
 {
     /* Destroy module list */
-    for (std::vector<plugin_t *>::iterator iter = this->_modules.begin(); iter != this->_modules.end(); ++iter)
+    for (std::vector<scripting::plugin::plugin_t *>::iterator iter = this->_modules.begin(); iter != this->_modules.end(); ++iter)
     {
         delete *iter;
     }
@@ -148,7 +148,7 @@ bool scripting::Engine::load(const wchar_t * module)
 {
     PyObject *pModuleName = NULL, *pModule = NULL, *pResult = NULL;
     Py_ssize_t module_len = 0;
-    plugin_t *plugin = NULL;
+    scripting::plugin::plugin_t *plugin = NULL;
     wchar_t module_name[PATH_MAX_LEN + 1] = {0};
     bool retval = false;
         
@@ -164,7 +164,7 @@ bool scripting::Engine::load(const wchar_t * module)
 
     /* Determine if the module needs to be added to the list or reloaded */
     /* Search for the module in the module list. If it exists, reload it */
-    for (std::vector<plugin_t *>::size_type idx = 0; idx < this->_modules.size(); ++idx)
+    for (std::vector<scripting::plugin::plugin_t *>::size_type idx = 0; idx < this->_modules.size(); ++idx)
     {
         plugin = this->_modules[idx];
         if (!plugin)
@@ -215,7 +215,7 @@ bool scripting::Engine::load(const wchar_t * module)
        
         /* Append the module to the plugin list */
         wcsncpy(module_name, module, sizeof(module_name) / sizeof(wchar_t) - 1);
-        plugin = new plugin_t(pModule, module_name);
+        plugin = new scripting::plugin::plugin_t(pModule, module_name);
         if (!plugin)
         {
             DEBUG_ERROR(L"failed to allocate memory for plugin for module: %ls%ls%ls\n",
@@ -240,7 +240,7 @@ bool scripting::Engine::load(const wchar_t * module)
     }
 
     /* Call the module's load function, as specified by the plugin API */
-    pResult = plugin_call_function(pModule, PLUGIN_API_FUNC_LOAD, NULL, NULL);
+    pResult = plugin->call(scripting::plugin::functions::LOAD, NULL, NULL);
     
     if (!pResult)
     {
@@ -253,7 +253,7 @@ bool scripting::Engine::load(const wchar_t * module)
         Py_DECREF(pResult);
         plugin->loaded = 0;
         DEBUG_ERROR(L"module function %ls%ls.%s%ls failed to return a Boolean\n", COLOR_RED, module,
-                PLUGIN_API_FUNC_LOAD, COLOR_END);
+                scripting::plugin::functions::LOAD.c_str(), COLOR_END);
         return false;
     }
 

@@ -1,5 +1,5 @@
-#ifndef __OCTO_AUDIO_AUDIO_H__
-#define __OCTO_AUDIO_AUDIO_H__
+#ifndef __OCTO_AUDIO_ENGINE_H__
+#define __OCTO_AUDIO_ENGINE_H__
 
 #include "engine/engine.h"
 

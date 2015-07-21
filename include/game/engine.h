@@ -1,5 +1,5 @@
-#ifndef __OCTO_GAME_H__
-#define __OCTO_GAME_H__
+#ifndef __OCTO_GAME_ENGINE_H__
+#define __OCTO_GAME_ENGINE_H__
 
 #include <wchar.h>
 #include "engine/engine.h"

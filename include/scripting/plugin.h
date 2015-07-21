@@ -1,8 +1,19 @@
-#ifndef __OCTO_PLUGIN_H__
-#define __OCTO_PLUGIN_H__
+#ifndef __OCTO_SCRIPTING_PLUGIN_H__
+#define __OCTO_SCRIPTING_PLUGIN_H__
 
 #include <Python.h>
+#include <string>
+
 #include "utils/path.h"
+
+namespace scripting
+{
+
+namespace plugin
+{
+
+namespace functions
+{
 
 /* Plugin API functions */
 
@@ -16,7 +27,9 @@
  *      the module is flagged as not ready and will not be called
  *      again until it is reloaded
  *******************************************************************/
-#define PLUGIN_API_FUNC_LOAD    "load"
+const std::string LOAD = "load";
+
+}   // namespace functions
 
 typedef struct _plugin
 {
@@ -45,9 +58,13 @@ typedef struct _plugin
         pModule = NULL;
         memset(module_name, 0, sizeof(module_name));
     }
+
+    PyObject * call(const std::string & function, PyObject * pArgs, PyObject * pKwargs) const;
 } plugin_t;
 
-PyObject * plugin_call_function(PyObject *pModule, const char *function, PyObject *pArgs, PyObject *pKwargs);
+}   // namespace plugin
+
+}   // namespace scripting
 
 #endif
 
