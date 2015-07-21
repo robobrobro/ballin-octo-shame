@@ -74,6 +74,7 @@ env = Environment(
     LIBS=[
         File(PYTHON_LIB), 'pthread', 'dl', 'util', 'm',
         'sfml-graphics', 'sfml-window', 'sfml-system', 'sfml-audio',
+        'stdc++',
     ],
     PYTHON_PATH=PYTHON_PATH,
     PYTHON_LIB=PYTHON_LIB,

@@ -1,38 +1,49 @@
 #include <Python.h>
 #include <dirent.h>
 #include <math.h>
+#include <vector>
 
 #include "debug.h"
 #include "scripting/plugin.h"
 #include "scripting/scripting.h"
 #include "utils/color.h"
-#include "utils/list.h"
 #include "utils/path.h"
 #include "utils/string.h"
 
-static list_t *g_module_list = NULL; 
-static void module_list_destroy_callback(void * data);
 static void debug_python_info(void);
 
-int scripting_init(wchar_t * program_name)
+ScriptingEngine::ScriptingEngine(scripting_engine_ctx_t * ctx)
+    : Engine::Engine((engine_ctx_t *)ctx)
 {
     wchar_t *program_dir = NULL, *builtins_dir = NULL, *plugins_dir = NULL;
     PyObject *pSysPath = NULL, *pPluginsDir = NULL;
-        
+
+    if (!ctx)
+    {
+        DEBUG_ERROR(L"ctx is NULL\n");
+        return;
+    }
+
+    if (this->_initialized)
+    {
+        DEBUG_ERROR(L"Python scripting engine already initialized\n");
+        return;
+    }
+
     if (Py_IsInitialized())
     {
-        DEBUG_ERROR(L"python already initialized\n");    
-        return 0;
+        DEBUG_ERROR(L"Python already initialized\n");    
+        return;
     }
 
     /* Set Python interpreter's program name */
-    Py_SetProgramName(program_name);
+    Py_SetProgramName(ctx->program_name);
 
-    program_dir = path_get_dir(program_name);
+    program_dir = path_get_dir(ctx->program_name);
     if (!program_dir)
     {
         DEBUG_ERROR(L"failed to get directory path to the program\n");
-        return 0;
+        return;
     }
 
     /* Set Python interpreter's module search path */
@@ -42,7 +53,7 @@ int scripting_init(wchar_t * program_name)
     {
         free(program_dir);
         DEBUG_ERROR(L"failed to get builtins path\n");
-        return 0;
+        return;
     }
 
     Py_SetPath(builtins_dir);
@@ -58,9 +69,8 @@ int scripting_init(wchar_t * program_name)
     {
         debug_python_info();
         free(program_dir);
-        /* TODO get exception */
         DEBUG_ERROR(L"failed to get Python sys.path\n");
-        return 0;
+        return;
     }
 
     plugins_dir = path_join(program_dir, L"plugins", NULL); 
@@ -70,7 +80,7 @@ int scripting_init(wchar_t * program_name)
     {
         debug_python_info();
         DEBUG_ERROR(L"failed to get plugins path\n");
-        return 0;
+        return;
     }
 
     pPluginsDir = PyUnicode_FromWideChar(plugins_dir, wcslen(plugins_dir));
@@ -79,9 +89,8 @@ int scripting_init(wchar_t * program_name)
     {
         free(plugins_dir);
         debug_python_info();
-        /* TODO get exception */
         DEBUG_ERROR(L"failed to decode plugins path\n");
-        return 0;
+        return;
     }
 
     if (PyList_Append(pSysPath, pPluginsDir) < 0)
@@ -90,84 +99,70 @@ int scripting_init(wchar_t * program_name)
         debug_python_info();
         Py_DECREF(pPluginsDir);
         DEBUG_ERROR(L"failed to append plugins path to Python sys.path\n");
-        return 0;
+        return;
     }
         
     Py_DECREF(pPluginsDir);
     
     debug_python_info();
 
-    /* Create modules list */
-    g_module_list = list_create();
-    if (!g_module_list)
-    {
-        free(plugins_dir);
-        DEBUG_ERROR(L"failed to create plugins list\n");
-        return 0;
-    }
-
     /* Load all modules in the plugins directory */
-    if (!scripting_load_dir(plugins_dir))
+    if (!this->load_dir(plugins_dir))
     {
         free(plugins_dir);
         DEBUG_ERROR(L"failed to load plugins\n");
-        return 0;
+        return;
     }
     
     free(plugins_dir);
 
-    return 1;
+    this->_initialized = true;
 }
 
-void scripting_shutdown(void)
+ScriptingEngine::~ScriptingEngine()
 {
-    /* Finalize Python interpreter */
-    if (!Py_IsInitialized())
-    {
-        DEBUG_ERROR(L"python not initialized\n");
-        return;
-    }
-
+    if (!this->_initialized) return;
+    
     /* Destroy module list */
-    if (g_module_list)
+    for (std::vector<plugin_t *>::iterator iter = this->_modules.begin(); iter != this->_modules.end(); ++iter)
     {
-        list_destroy(g_module_list, module_list_destroy_callback);
-        g_module_list = NULL;
+        delete *iter;
+    }
+    this->_modules.clear();
+
+    /* Finalize Python interpreter */
+    if (Py_IsInitialized())
+    {
+        Py_Finalize();
+        DEBUG_INFO(L"Python scripting engine shut down successfully\n");
     }
 
-    Py_Finalize();
+    this->_initialized = false;
 }
 
-int scripting_load(const wchar_t * module)
+bool ScriptingEngine::load(const wchar_t * module)
 {
     PyObject *pModuleName = NULL, *pModule = NULL, *pResult = NULL;
     Py_ssize_t module_len = 0;
-    list_t *list_curr = NULL;
     plugin_t *plugin = NULL;
-    unsigned int module_idx = 0;
-    int retval = 0;
+    wchar_t module_name[PATH_MAX_LEN + 1] = {0};
+    bool retval = false;
         
     DEBUG_DEBUG(L"attempting to load module %ls%ls%ls\n", COLOR_YELLOW, module, COLOR_END);
 
-    if (!Py_IsInitialized())
+    if (!this->_initialized)
     {
-        DEBUG_ERROR(L"python not initialized\n");
-        return 0;
+        DEBUG_ERROR(L"scripting engine not initialized\n");
+        return false;
     }
 
     module_len = wcsnlen(module, PATH_MAX_LEN);
 
     /* Determine if the module needs to be added to the list or reloaded */
-    if (!g_module_list)
-    {
-        DEBUG_ERROR(L"failed to add module to list: module list is NULL\n");
-        return 0;
-    }
-
     /* Search for the module in the module list. If it exists, reload it */
-    for (list_curr = g_module_list->front, module_idx = 0; list_curr; list_curr = list_curr->next, ++module_idx)
+    for (std::vector<plugin_t *>::size_type idx = 0; idx < this->_modules.size(); ++idx)
     {
-        plugin = (plugin_t *)list_curr->data;
+        plugin = this->_modules[idx];
         if (!plugin)
         {
             DEBUG_ERROR(L"failed to get plugin from module list\n");
@@ -180,7 +175,7 @@ int scripting_load(const wchar_t * module)
             continue;
         }
 
-        DEBUG_DEBUG(L"module[%ls%d%ls] = %ls%ls%ls (%ls%lsloaded%ls)\n", COLOR_BOLD, module_idx, COLOR_END,
+        DEBUG_DEBUG(L"module[%ls%d%ls] = %ls%ls%ls (%ls%lsloaded%ls)\n", COLOR_BOLD, idx, COLOR_END,
                 COLOR_YELLOW, plugin->module_name, COLOR_END,
                 plugin->loaded ? COLOR_GREEN : COLOR_RED,
                 plugin->loaded ? L"" : L"not ", COLOR_END);
@@ -201,7 +196,7 @@ int scripting_load(const wchar_t * module)
         if (!pModuleName)
         {
             DEBUG_ERROR(L"failed to encode module name: %ls%ls%ls\n", COLOR_RED, module, COLOR_END);
-            return 0;
+            return false;
         }
 
         /* Import the module */
@@ -211,30 +206,20 @@ int scripting_load(const wchar_t * module)
         if (!pModule)
         {
             DEBUG_ERROR(L"failed to load module: %ls%ls%ls\n", COLOR_RED, module, COLOR_END);
-            return 0;
+            return false;
         }
        
         /* Append the module to the plugin list */
-        plugin = (plugin_t *)malloc(sizeof(plugin_t));
+        wcsncpy(module_name, module, sizeof(module_name) / sizeof(wchar_t) - 1);
+        plugin = new plugin_t(pModule, module_name);
         if (!plugin)
         {
             DEBUG_ERROR(L"failed to allocate memory for plugin for module: %ls%ls%ls\n",
                     COLOR_RED, module, COLOR_END);
-            return 0;
+            return false;
         }
 
-        plugin->pModule = pModule;
-        memset(plugin->module_name, 0, sizeof(plugin->module_name));
-        wcsncpy(plugin->module_name, module, sizeof(plugin->module_name) / sizeof(wchar_t) - 1);
-        plugin->loaded = 0;
-
-        if (!list_append(g_module_list, plugin))
-        {
-            Py_DECREF(pModule);
-            free(plugin);
-            DEBUG_ERROR(L"failed to add module to list: %ls%ls%ls\n", COLOR_RED, module, COLOR_END);
-            return 0;
-        }
+        this->_modules.push_back(plugin);
     }
     else
     {
@@ -242,11 +227,11 @@ int scripting_load(const wchar_t * module)
 
         /* The module has already been imported, so reload it */
         pModule = PyImport_ReloadModule(pModule);
-        
+       
         if (!pModule)
         {
             DEBUG_ERROR(L"failed to reload module: %ls%ls%ls\n", COLOR_RED, module, COLOR_END);
-            return 0;
+            return false;
         }
     }
 
@@ -255,8 +240,8 @@ int scripting_load(const wchar_t * module)
     
     if (!pResult)
     {
-        plugin->loaded = 0;
-        return 0; 
+        plugin->loaded = false;
+        return false;
     }
 
     if (!PyBool_Check(pResult))
@@ -265,7 +250,7 @@ int scripting_load(const wchar_t * module)
         plugin->loaded = 0;
         DEBUG_ERROR(L"module function %ls%ls.%s%ls failed to return a Boolean\n", COLOR_RED, module,
                 PLUGIN_API_FUNC_LOAD, COLOR_END);
-        return 0;
+        return false;
     }
 
     plugin->loaded = retval = pResult == Py_True;
@@ -283,13 +268,13 @@ int scripting_load(const wchar_t * module)
     return retval;
 }
    
-int scripting_load_dir(const wchar_t * path)
+bool ScriptingEngine::load_dir(const wchar_t * path)
 {
-    int retval = 1;
     DIR *dir = NULL;
     char mb_path[PATH_MAX_LEN + 1] = {0};
     struct dirent *ent = NULL;
     wchar_t ent_name[PATH_MAX_LEN + 1] = {0}, *ent_name_no_ext = NULL;
+    bool retval = true;
 
     wcstombs(mb_path, path, PATH_MAX_LEN);
 
@@ -310,7 +295,7 @@ int scripting_load_dir(const wchar_t * path)
             ent_name_no_ext = path_trim_ext(ent_name);
             if (ent_name_no_ext)
             {
-                retval = scripting_load(ent_name_no_ext) && retval;
+                retval = this->load(ent_name_no_ext) && retval;
                 free(ent_name_no_ext);
             }
         }
@@ -319,18 +304,6 @@ int scripting_load_dir(const wchar_t * path)
     closedir(dir);
 
     return retval;
-}
-
-static void module_list_destroy_callback(void * data)
-{
-    plugin_t *plugin = NULL;
-    
-    if (!data) return;
-
-    plugin = (plugin_t *)data;
-    Py_XDECREF(plugin->pModule);
-    plugin->pModule = NULL;
-    memset(plugin->module_name, 0, sizeof(plugin->module_name));
 }
 
 static void debug_python_info(void)
@@ -383,7 +356,6 @@ static void debug_python_info(void)
     pSysPath = PySys_GetObject("path");
     if (!pSysPath)
     {
-        /* TODO get exception */
         DEBUG_ERROR(L"failed to get Python sys.path\n");
         return;
     }

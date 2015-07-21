@@ -1,40 +1,22 @@
-#include <stdlib.h>
 #include "debug.h"
-#include "scripting/scripting.h"
-#include "utils/path.h"
+#include "game.h"
 #include "utils/string.h"
-
-static int init(int argc, char ** argv);
-static void shutdown(void);
 
 int main(int argc, char ** argv)
 {
-    if (!init(argc, argv))
+    /* Initialize game engine */
+    wchar_t program_name[PATH_MAX_LEN + 1] = {0};
+    char_to_wchar(argv[0], program_name);
+    game_ctx_t game_ctx;
+    game_ctx.program_name = program_name;
+    Game game(&game_ctx);
+    if (!game.is_initialized())
     {
         DEBUG_ERROR(L"initialization failed\n");
         return 1;
     }
-    
-    return 0;
-}
 
-static int init(int argc, char ** argv)
-{
-    wchar_t program_name[260] = {0};
-
-    atexit(shutdown);
-
-    /* Initialize scripting engine */
-    char_to_wchar(argv[0], program_name);
-    if (!scripting_init(program_name)) return 0;
-
-    DEBUG_INFO(L"initialization succeeded\n");
-
-    return 1;
-}
-
-static void shutdown(void)
-{
-    scripting_shutdown();
+    /* Run the game */
+    return game.run() ? 0 : 1;
 }
 
