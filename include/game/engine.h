@@ -1,7 +1,7 @@
 #ifndef __OCTO_GAME_ENGINE_H__
 #define __OCTO_GAME_ENGINE_H__
 
-#include <wchar.h>
+#include <string>
 #include "engine/engine.h"
 #include "audio/engine.h"
 #include "graphics/engine.h"
@@ -12,7 +12,7 @@ namespace game
 
 struct ctx_t : public engine::ctx_t
 {
-    wchar_t * program_name;
+    std::wstring program_name;
 };
 
 class Engine : public engine::Engine

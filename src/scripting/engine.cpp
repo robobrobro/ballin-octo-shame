@@ -14,7 +14,7 @@ static void debug_python_info(void);
 scripting::Engine::Engine(scripting::ctx_t * ctx)
     : engine::Engine::Engine((engine::ctx_t *)ctx)
 {
-    wchar_t *program_dir = NULL, *builtins_dir = NULL, *plugins_dir = NULL;
+    wchar_t program_name[utils::path::MAX_LEN] = {0};
     PyObject *pSysPath = NULL, *pPluginsDir = NULL;
 
     if (!ctx)
@@ -36,26 +36,14 @@ scripting::Engine::Engine(scripting::ctx_t * ctx)
     }
 
     /* Set Python interpreter's program name */
-    Py_SetProgramName(ctx->program_name);
+    swprintf(program_name, sizeof(program_name) - 1, L"%ls", ctx->program_name.c_str());
+    Py_SetProgramName(program_name);
 
-    program_dir = path_get_dir(ctx->program_name);
-    if (!program_dir)
-    {
-        DEBUG_ERROR(L"failed to get directory path to the program\n");
-        return;
-    }
+    std::wstring program_dir = utils::path::get_dir(ctx->program_name);
 
     /* Set Python interpreter's module search path */
-    builtins_dir = path_join(program_dir, L".builtins", NULL); 
-    
-    if (!builtins_dir)
-    {
-        free(program_dir);
-        DEBUG_ERROR(L"failed to get builtins path\n");
-        return;
-    }
-
-    Py_SetPath(builtins_dir);
+    std::wstring builtins_dir = utils::path::join(program_dir.c_str(), L".builtins", NULL); 
+    Py_SetPath(builtins_dir.c_str());
     
     /* Initialize Python interpreter */
     Py_Initialize();
@@ -67,29 +55,18 @@ scripting::Engine::Engine(scripting::ctx_t * ctx)
     pSysPath = PySys_GetObject("path");
     if (!pSysPath)
     {
-        free(program_dir);
         this->_initialized = false;
         debug_python_info();
         DEBUG_ERROR(L"failed to get Python sys.path\n");
         return;
     }
 
-    plugins_dir = path_join(program_dir, L"plugins", NULL); 
-    free(program_dir);
+    std::wstring plugins_dir = utils::path::join(program_dir.c_str(), L"plugins", NULL); 
     
-    if (!plugins_dir)
-    {
-        this->_initialized = false;
-        debug_python_info();
-        DEBUG_ERROR(L"failed to get plugins path\n");
-        return;
-    }
-
-    pPluginsDir = PyUnicode_FromWideChar(plugins_dir, wcslen(plugins_dir));
+    pPluginsDir = PyUnicode_FromWideChar(plugins_dir.c_str(), plugins_dir.size());
 
     if (!pPluginsDir)
     {
-        free(plugins_dir);
         this->_initialized = false;
         debug_python_info();
         DEBUG_ERROR(L"failed to decode plugins path\n");
@@ -98,7 +75,6 @@ scripting::Engine::Engine(scripting::ctx_t * ctx)
 
     if (PyList_Append(pSysPath, pPluginsDir) < 0)
     {
-        free(plugins_dir);
         Py_DECREF(pPluginsDir);
         this->_initialized = false;
         debug_python_info();
@@ -113,14 +89,11 @@ scripting::Engine::Engine(scripting::ctx_t * ctx)
     /* Load all modules in the plugins directory */
     if (!this->load_dir(plugins_dir))
     {
-        free(plugins_dir);
         this->_initialized = false;
         DEBUG_ERROR(L"failed to load plugins\n");
         return;
     }
     
-    free(plugins_dir);
-
     this->_initialized = true;
 }
 
@@ -264,15 +237,14 @@ bool scripting::Engine::load(const std::wstring & module)
     return plugin->loaded();
 }
    
-bool scripting::Engine::load_dir(const wchar_t * path)
+bool scripting::Engine::load_dir(const std::wstring & path)
 {
     DIR *dir = NULL;
-    char mb_path[PATH_MAX_LEN + 1] = {0};
+    char mb_path[utils::path::MAX_LEN + 1] = {0};
     struct dirent *ent = NULL;
-    wchar_t ent_name[PATH_MAX_LEN + 1] = {0}, *ent_name_no_ext = NULL;
     bool retval = true;
 
-    wcstombs(mb_path, path, PATH_MAX_LEN);
+    wcstombs(mb_path, path.c_str(), utils::path::MAX_LEN);
 
     dir = opendir(mb_path);
     if (!dir)
@@ -283,16 +255,15 @@ bool scripting::Engine::load_dir(const wchar_t * path)
 
     while ((ent = readdir(dir)))
     {
-        char_to_wchar(ent->d_name, ent_name);
-        if (path_has_ext(ent_name, L".py"))
+        std::wstring ent_name = utils::string::cstr_to_wstr(ent->d_name);
+        if (utils::path::has_ext(ent_name, L".py"))
         {
             DEBUG_DEBUG(L"found plugin: %ls%s%ls\n", COLOR_WHITE, ent->d_name, COLOR_END);
 
-            ent_name_no_ext = path_trim_ext(ent_name);
-            if (ent_name_no_ext)
+            std::wstring ent_name_no_ext = utils::path::trim_ext(ent_name);
+            if (ent_name_no_ext.size() > 0)
             {
                 retval = this->load(std::wstring(ent_name_no_ext)) && retval;
-                free(ent_name_no_ext);
             }
         }
     }

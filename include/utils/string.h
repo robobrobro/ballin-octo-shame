@@ -1,10 +1,20 @@
 #ifndef __OCTO_UTILS_STRING_H__
 #define __OCTO_UTILS_STRING_H__
 
+#include <string>
 #include <wchar.h>
 
-#define char_to_wchar(c, w) swprintf((w), sizeof((w)) / sizeof(wchar_t), L"%s", (c))
-#define char_to_wchar_len(c, w, l) swprintf((w), (l), L"%s", (c))
+namespace utils
+{
+
+namespace string
+{
+
+std::wstring cstr_to_wstr(const char * cstr);
+
+}   // namespace string
+
+}   // namespace utils
 
 #endif
 

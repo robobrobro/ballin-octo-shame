@@ -1,15 +1,26 @@
 #ifndef __OCTO_UTILS_PATH_H__
 #define __OCTO_UTILS_PATH_H__
 
+#include <string>
 #include <wchar.h>
 
-#define PATH_MAX_LEN 260
+namespace utils
+{
 
-wchar_t * path_get_cwd(void);
-wchar_t * path_get_dir(const wchar_t * path);
-wchar_t * path_join(const wchar_t * path, ...);
-int path_has_ext(const wchar_t * path, const wchar_t * ext);
-wchar_t * path_trim_ext(const wchar_t * path);
+namespace path
+{
+
+const size_t MAX_LEN = 260;
+
+std::wstring get_cwd(void);
+std::wstring get_dir(const std::wstring & path);
+std::wstring join(const wchar_t * path, ...);
+bool has_ext(const std::wstring & path, const std::wstring & ext);
+std::wstring trim_ext(const std::wstring & path);
+
+}   // namespace path
+
+}   // namespace utils
 
 #endif
 

@@ -5,10 +5,8 @@
 int main(int argc, char ** argv)
 {
     /* Initialize game engine */
-    wchar_t program_name[PATH_MAX_LEN + 1] = {0};
-    char_to_wchar(argv[0], program_name);
     game::ctx_t game_ctx;
-    game_ctx.program_name = program_name;
+    game_ctx.program_name = utils::string::cstr_to_wstr(argv[0]);
     game::Engine game(&game_ctx);
     if (!game.is_initialized())
     {

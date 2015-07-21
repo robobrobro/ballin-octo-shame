@@ -4,11 +4,11 @@
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
 #   include <direct.h>
-#   define get_cwd(b, l) _getcwd((b), (int)(l))
+#   define _get_cwd(b, l) _getcwd((b), (int)(l))
 #   define PATH_SEP L"\\"
 #else
 #   include <unistd.h>
-#   define get_cwd(b, l) getcwd((b), (size_t)(l))
+#   define _get_cwd(b, l) getcwd((b), (size_t)(l))
 #   define PATH_SEP L"/"
 #endif
 
@@ -17,59 +17,38 @@
 
 static int is_path_sep(wchar_t c);
 
-wchar_t * path_get_cwd(void)
+std::wstring utils::path::get_cwd(void)
 {
-    wchar_t * wcwd = NULL;
-    char * cwd = NULL;
+    char * cwd = _get_cwd(NULL, utils::path::MAX_LEN + 1);
+    if (!cwd) return std::wstring(L"");
 
-    cwd = get_cwd(cwd, PATH_MAX_LEN);
-    if (!cwd) return NULL;
-
-    wcwd = (wchar_t *)malloc((PATH_MAX_LEN + 1) * sizeof(wchar_t));
-    if (!wcwd) return NULL;
-
-    char_to_wchar_len(cwd, wcwd, PATH_MAX_LEN);
-    wcwd[PATH_MAX_LEN] = 0;
-
+    std::wstring wcwd = utils::string::cstr_to_wstr(cwd);
+    free(cwd);
     return wcwd;
 }
 
-wchar_t * path_get_dir(const wchar_t * path)
+std::wstring utils::path::get_dir(const std::wstring & path)
 {
-    wchar_t * dir = NULL;
-    int idx = 0;
-    size_t len = 0;
+    wprintf(L"path=%ls\n", path.c_str());
+    auto pos = path.find_last_of(PATH_SEP);
+    wprintf(L"path=%ls\n", path.c_str());
+    if (pos == std::wstring::npos) return path;
 
-    len = wcsnlen(path, PATH_MAX_LEN);
-    dir = (wchar_t *)malloc((len + 1) * sizeof(wchar_t));
-    if (!dir) return NULL;
-
-    wcsncpy(dir, path, len);
-    dir[len] = 0;
-
-    for (idx = (int)(len - 1); idx >= 0; --idx)
-    {
-        if (is_path_sep(dir[idx]))
-        {
-            dir[idx + 1] = 0;
-            break;
-        }
-    }
-
-    return dir;
+    wprintf(L"path=%ls\n", path.substr(0, pos).c_str());
+    return path.substr(0, pos);
 }
 
-wchar_t * path_join(const wchar_t * path, ...)
+std::wstring utils::path::join(const wchar_t * path, ...)
 {
     va_list args;
     wchar_t *s = NULL, *joined_path = 0;
     int idx = 0;
     size_t path_len = 0;
 
-    joined_path = (wchar_t *)malloc((PATH_MAX_LEN + 1) * sizeof(wchar_t));
+    joined_path = (wchar_t *)malloc((utils::path::MAX_LEN + 1) * sizeof(wchar_t));
     if (!joined_path) return NULL;
-    wcsncpy(joined_path, path, PATH_MAX_LEN);
-    path_len = wcsnlen(path, PATH_MAX_LEN);
+    wcsncpy(joined_path, path, utils::path::MAX_LEN);
+    path_len = wcsnlen(path, utils::path::MAX_LEN);
     if (is_path_sep(joined_path[path_len - 1]))
     {
         joined_path[path_len - 1] = 0;
@@ -83,62 +62,39 @@ wchar_t * path_join(const wchar_t * path, ...)
 
     va_start(args, path);
 
-    for (s = va_arg(args, wchar_t *); s && idx < PATH_MAX_LEN; s = va_arg(args, wchar_t *))
+    for (s = va_arg(args, wchar_t *); s && idx < (int)utils::path::MAX_LEN; s = va_arg(args, wchar_t *))
     {
-        path_len = wcsnlen(s, PATH_MAX_LEN);
+        path_len = wcsnlen(s, utils::path::MAX_LEN);
         if (path_len > 0)
         {
             if (!is_path_sep(s[0]))
             {
-                wcsncpy(&joined_path[idx], PATH_SEP, (size_t)(PATH_MAX_LEN - idx));
+                wcsncpy(&joined_path[idx], PATH_SEP, (size_t)(utils::path::MAX_LEN - idx));
                 ++idx;
             }
 
-            wcsncpy(&joined_path[idx], s, (size_t)(PATH_MAX_LEN - idx));
-            idx += (int)(wcsnlen(s, PATH_MAX_LEN)); 
+            wcsncpy(&joined_path[idx], s, (size_t)(utils::path::MAX_LEN - idx));
+            idx += (int)(wcsnlen(s, utils::path::MAX_LEN)); 
         }
     }
 
     va_end(args);
-
-    return joined_path;
+    
+    std::wstring p = joined_path;
+    free(joined_path);
+    return p;
 }
 
-int path_has_ext(const wchar_t * path, const wchar_t * ext)
+bool utils::path::has_ext(const std::wstring & path, const std::wstring & ext)
 {
-    size_t path_len = 0, ext_len = 0;
+    if (path.size() < ext.size()) return false;
 
-    path_len = wcsnlen(path, PATH_MAX_LEN);
-    ext_len = wcsnlen(ext, PATH_MAX_LEN);
-
-    if (path_len < ext_len) return 0;
-
-    return wcsncmp(&path[path_len - ext_len], ext, ext_len) == 0;
+    return path.substr(path.size() - 1 - ext.size(), ext.size()) == ext;
 }
 
-wchar_t * path_trim_ext(const wchar_t * path)
+std::wstring utils::path::trim_ext(const std::wstring & path)
 {
-    wchar_t * new_path = NULL;
-    size_t path_len = 0, idx = 0;
-
-    path_len = wcsnlen(path, PATH_MAX_LEN);
-    new_path = (wchar_t *)malloc((path_len + 1) * sizeof(wchar_t));
-    if (!new_path) return NULL;
-
-    wcsncpy(new_path, path, path_len);
-    new_path[path_len] = 0;
-
-    for (idx = path_len - 1; idx >= 0; --idx)
-    {
-        if (path[idx] == '.')
-        {
-            new_path[idx] = 0;
-            return new_path;
-        }
-    }
-
-    free(new_path);
-    return NULL;
+    return path.substr(0, path.find_last_of(L"."));
 }
 
 static int is_path_sep(wchar_t c)

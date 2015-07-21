@@ -1,7 +1,7 @@
 #ifndef __OCTO_SCRIPTING_ENGINE_H__
 #define __OCTO_SCRIPTING_ENGINE_H__
 
-#include <wchar.h>
+#include <string>
 #include <vector>
 
 #include "engine/engine.h"
@@ -12,7 +12,7 @@ namespace scripting
 
 struct ctx_t : public engine::ctx_t
 {
-    wchar_t * program_name;
+    std::wstring program_name;
 };
 
 class Engine : public engine::Engine
@@ -22,7 +22,7 @@ class Engine : public engine::Engine
         ~Engine();
 
         bool load(const std::wstring & module);
-        bool load_dir(const wchar_t * path);
+        bool load_dir(const std::wstring & path);
 
     protected:
         std::vector<scripting::plugin::Plugin *> _modules;
