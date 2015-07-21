@@ -31,36 +31,27 @@ const std::string LOAD = "load";
 
 }   // namespace functions
 
-typedef struct _plugin
+class Plugin
 {
-    PyObject *pModule;
-    wchar_t module_name[PATH_MAX_LEN + 1];
-    bool loaded;
+    public:
+        Plugin();
+        Plugin(PyObject * module, const std::wstring & name);
+        ~Plugin();
+    
+        PyObject * call(const std::string & function, PyObject * pArgs, PyObject * pKwargs) const;
 
-    _plugin() : pModule(NULL), loaded(false)
-    {
-        memset(module_name, 0, sizeof(module_name));
-    }
-
-    _plugin(PyObject * module, wchar_t * name)
-        : pModule(module), loaded(false)
-    {
-        memset(module_name, 0, sizeof(module_name));
-        if (name)
-        {
-            wcsncpy(module_name, name, PATH_MAX_LEN);
-        }
-    }
-
-    ~_plugin()
-    {
-        Py_XDECREF(pModule);
-        pModule = NULL;
-        memset(module_name, 0, sizeof(module_name));
-    }
-
-    PyObject * call(const std::string & function, PyObject * pArgs, PyObject * pKwargs) const;
-} plugin_t;
+        PyObject * module(void) { return _module; }
+        std::wstring name(void) const;
+        std::wstring name(const std::string & function) const;
+        std::wstring module_name(void) const { return _module_name; }
+        bool loaded(void) const { return _loaded; }
+        void loaded(bool l) { _loaded = l; }
+   
+    protected: 
+        PyObject *_module;
+        std::wstring _module_name;
+        bool _loaded;
+};
 
 }   // namespace plugin
 

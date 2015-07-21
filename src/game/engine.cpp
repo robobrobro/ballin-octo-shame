@@ -67,8 +67,6 @@ game::Engine::Engine(game::ctx_t * ctx)
 
 game::Engine::~Engine()
 {
-    if (!this->_initialized) return;
-
     // Shut down scripting engine
     if (this->_scripting_engine)
     {

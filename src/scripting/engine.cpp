@@ -1,6 +1,5 @@
 #include <Python.h>
 #include <dirent.h>
-#include <math.h>
 #include <vector>
 
 #include "debug.h"
@@ -128,7 +127,7 @@ scripting::Engine::Engine(scripting::ctx_t * ctx)
 scripting::Engine::~Engine()
 {
     /* Destroy module list */
-    for (std::vector<scripting::plugin::plugin_t *>::iterator iter = this->_modules.begin(); iter != this->_modules.end(); ++iter)
+    for (std::vector<scripting::plugin::Plugin *>::iterator iter = this->_modules.begin(); iter != this->_modules.end(); ++iter)
     {
         delete *iter;
     }
@@ -144,15 +143,12 @@ scripting::Engine::~Engine()
     this->_initialized = false;
 }
 
-bool scripting::Engine::load(const wchar_t * module)
+bool scripting::Engine::load(const std::wstring & module)
 {
     PyObject *pModuleName = NULL, *pModule = NULL, *pResult = NULL;
-    Py_ssize_t module_len = 0;
-    scripting::plugin::plugin_t *plugin = NULL;
-    wchar_t module_name[PATH_MAX_LEN + 1] = {0};
-    bool retval = false;
+    scripting::plugin::Plugin *plugin = NULL, *other_plugin = NULL;
         
-    DEBUG_DEBUG(L"attempting to load module %ls%ls%ls\n", COLOR_YELLOW, module, COLOR_END);
+    DEBUG_DEBUG(L"attempting to load module %ls%ls%ls\n", COLOR_CYAN, module.c_str(), COLOR_END);
 
     if (!this->_initialized)
     {
@@ -160,46 +156,45 @@ bool scripting::Engine::load(const wchar_t * module)
         return false;
     }
 
-    module_len = wcsnlen(module, PATH_MAX_LEN);
-
     /* Determine if the module needs to be added to the list or reloaded */
     /* Search for the module in the module list. If it exists, reload it */
-    for (std::vector<scripting::plugin::plugin_t *>::size_type idx = 0; idx < this->_modules.size(); ++idx)
+    for (std::vector<scripting::plugin::Plugin *>::size_type idx = 0; idx < this->_modules.size(); ++idx)
     {
-        plugin = this->_modules[idx];
-        if (!plugin)
+        other_plugin = this->_modules[idx];
+        if (!other_plugin)
         {
-            DEBUG_ERROR(L"failed to get plugin from module list\n");
+            DEBUG_ERROR(L"failed to get other_plugin from module list\n");
             continue;
         }
 
-        if (!plugin->pModule)
+        if (!other_plugin->module())
         {
             DEBUG_ERROR(L"failed to get module from module list\n");
             continue;
         }
 
-        DEBUG_DEBUG(L"module[%ls%d%ls] = %ls%ls%ls (%ls%lsloaded%ls)\n", COLOR_BOLD, idx, COLOR_END,
-                COLOR_YELLOW, plugin->module_name, COLOR_END,
-                plugin->loaded ? COLOR_GREEN : COLOR_RED,
-                plugin->loaded ? L"" : L"not ", COLOR_END);
+        DEBUG_DEBUG(L"module[%ls%d%ls] = %ls (%ls%lsloaded%ls)\n",
+                COLOR_BOLD, idx, COLOR_END,
+                other_plugin->name().c_str(),
+                other_plugin->loaded() ? COLOR_GREEN : COLOR_RED,
+                other_plugin->loaded() ? L"" : L"not ", COLOR_END);
 
-        if (wcsncmp(module, plugin->module_name, fmin(module_len, wcsnlen(plugin->module_name, PATH_MAX_LEN))) == 0)
+        if (module == other_plugin->module_name())
         {
-            pModule = plugin->pModule;
+            plugin = other_plugin;
             break;
         }
     }
 
-    if (!pModule)
+    if (!plugin)
     {
-        DEBUG_DEBUG(L"module not found: importing module %ls%ls%ls\n", COLOR_YELLOW, module, COLOR_END);
+        DEBUG_DEBUG(L"module not found: importing...\n");
 
         /* Convert name of the module to a Python unicode string */
-        pModuleName = PyUnicode_FromWideChar(module, module_len); 
+        pModuleName = PyUnicode_FromWideChar(module.c_str(), module.size()); 
         if (!pModuleName)
         {
-            DEBUG_ERROR(L"failed to encode module name: %ls%ls%ls\n", COLOR_RED, module, COLOR_END);
+            DEBUG_ERROR(L"failed to encode module name\n");
             return false;
         }
 
@@ -209,17 +204,15 @@ bool scripting::Engine::load(const wchar_t * module)
     
         if (!pModule)
         {
-            DEBUG_ERROR(L"failed to load module: %ls%ls%ls\n", COLOR_RED, module, COLOR_END);
+            DEBUG_ERROR(L"failed to load module\n");
             return false;
         }
        
         /* Append the module to the plugin list */
-        wcsncpy(module_name, module, sizeof(module_name) / sizeof(wchar_t) - 1);
-        plugin = new scripting::plugin::plugin_t(pModule, module_name);
+        plugin = new scripting::plugin::Plugin(pModule, module);
         if (!plugin)
         {
-            DEBUG_ERROR(L"failed to allocate memory for plugin for module: %ls%ls%ls\n",
-                    COLOR_RED, module, COLOR_END);
+            DEBUG_ERROR(L"failed to allocate memory for module\n");
             return false;
         }
 
@@ -227,49 +220,48 @@ bool scripting::Engine::load(const wchar_t * module)
     }
     else
     {
-        DEBUG_DEBUG(L"module found: reloading module %ls%ls%ls\n", COLOR_YELLOW, module, COLOR_END);
+        DEBUG_DEBUG(L"module found: reloading module %ls\n", plugin->name().c_str());
 
         /* The module has already been imported, so reload it */
         pModule = PyImport_ReloadModule(pModule);
        
         if (!pModule)
         {
-            DEBUG_ERROR(L"failed to reload module: %ls%ls%ls\n", COLOR_RED, module, COLOR_END);
+            DEBUG_ERROR(L"failed to reload module: %ls\n", plugin->name().c_str());
             return false;
         }
     }
 
     /* Call the module's load function, as specified by the plugin API */
+    plugin->loaded(false);
     pResult = plugin->call(scripting::plugin::functions::LOAD, NULL, NULL);
     
     if (!pResult)
     {
-        plugin->loaded = false;
         return false;
     }
 
     if (!PyBool_Check(pResult))
     {
         Py_DECREF(pResult);
-        plugin->loaded = 0;
-        DEBUG_ERROR(L"module function %ls%ls.%s%ls failed to return a Boolean\n", COLOR_RED, module,
-                scripting::plugin::functions::LOAD.c_str(), COLOR_END);
+        DEBUG_ERROR(L"module function %ls failed to return a Boolean\n",
+                plugin->name(scripting::plugin::functions::LOAD.c_str()).c_str());
         return false;
     }
 
-    plugin->loaded = retval = pResult == Py_True;
+    plugin->loaded(pResult == Py_True);
     Py_DECREF(pResult);
 
-    if (!retval)
+    if (!plugin->loaded())
     {
-        DEBUG_ERROR(L"failed to load module: %ls%ls%ls\n", COLOR_RED, module, COLOR_END);
+        DEBUG_ERROR(L"module %ls failed to load\n", plugin->name().c_str());
     }
     else
     {
-        DEBUG_INFO(L"successfully loaded module: %ls%ls%ls\n", COLOR_YELLOW, module, COLOR_END);
+        DEBUG_INFO(L"successfully loaded module: %ls\n", plugin->name().c_str());
     }
 
-    return retval;
+    return plugin->loaded();
 }
    
 bool scripting::Engine::load_dir(const wchar_t * path)
@@ -294,12 +286,12 @@ bool scripting::Engine::load_dir(const wchar_t * path)
         char_to_wchar(ent->d_name, ent_name);
         if (path_has_ext(ent_name, L".py"))
         {
-            DEBUG_DEBUG(L"found plugin: %ls%s%ls\n", COLOR_YELLOW, ent->d_name, COLOR_END);
+            DEBUG_DEBUG(L"found plugin: %ls%s%ls\n", COLOR_WHITE, ent->d_name, COLOR_END);
 
             ent_name_no_ext = path_trim_ext(ent_name);
             if (ent_name_no_ext)
             {
-                retval = this->load(ent_name_no_ext) && retval;
+                retval = this->load(std::wstring(ent_name_no_ext)) && retval;
                 free(ent_name_no_ext);
             }
         }
@@ -328,10 +320,10 @@ static void debug_python_info(void)
 
     tmp = Py_GetProgramName();
     if (tmp)
-        DEBUG_DEBUG(L"%ls%-20ls%ls %ls\n", COLOR_YELLOW, L"Program Name", COLOR_END, tmp);
+        DEBUG_DEBUG(L"%ls%-20ls%ls %ls\n", COLOR_WHITE, L"Program Name", COLOR_END, tmp);
     tmp = Py_GetProgramFullPath();
     if (tmp)
-        DEBUG_DEBUG(L"%ls%-20ls%ls %ls\n", COLOR_YELLOW, L"Program Full Path", COLOR_END, tmp);
+        DEBUG_DEBUG(L"%ls%-20ls%ls %ls\n", COLOR_WHITE, L"Program Full Path", COLOR_END, tmp);
     strncpy(version, Py_GetVersion(), sizeof(version) - 1);
     len = strlen(version);
     for (idx = 0; idx < len; ++idx)
@@ -343,13 +335,13 @@ static void debug_python_info(void)
             break;
         }
     }
-    DEBUG_DEBUG(L"%ls%-20ls%ls %s\n", COLOR_YELLOW, L"Version", COLOR_END, version);
+    DEBUG_DEBUG(L"%ls%-20ls%ls %s\n", COLOR_WHITE, L"Version", COLOR_END, version);
     if (compiler)
-        DEBUG_DEBUG(L"%ls%-20ls%ls %s\n", COLOR_YELLOW, L"Compiler", COLOR_END, compiler);
+        DEBUG_DEBUG(L"%ls%-20ls%ls %s\n", COLOR_WHITE, L"Compiler", COLOR_END, compiler);
     tmp = Py_GetPath();
     if (tmp)
-        DEBUG_DEBUG(L"%ls%-20ls%ls %ls\n", COLOR_YELLOW, L"Module Path", COLOR_END, tmp);
-    DEBUG_DEBUG(L"%ls%-20ls%ls %s\n", COLOR_YELLOW, L"Platform", COLOR_END, Py_GetPlatform());
+        DEBUG_DEBUG(L"%ls%-20ls%ls %ls\n", COLOR_WHITE, L"Module Path", COLOR_END, tmp);
+    DEBUG_DEBUG(L"%ls%-20ls%ls %s\n", COLOR_WHITE, L"Platform", COLOR_END, Py_GetPlatform());
    
     pSysPath = PySys_GetObject("path");
     if (!pSysPath)
@@ -376,7 +368,7 @@ static void debug_python_info(void)
             else
             {
                 swprintf(temp, sizeof(temp) / sizeof(wchar_t) - 1, L"sys.path[%d]", path_idx);
-                DEBUG_DEBUG(L"%ls%-20ls%ls %ls\n", COLOR_YELLOW, temp, COLOR_END, path); 
+                DEBUG_DEBUG(L"%ls%-20ls%ls %ls\n", COLOR_WHITE, temp, COLOR_END, path); 
                 PyMem_Free(path);
             }
         }

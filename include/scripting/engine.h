@@ -21,11 +21,11 @@ class Engine : public engine::Engine
         Engine(scripting::ctx_t * ctx);
         ~Engine();
 
-        bool load(const wchar_t * module);
+        bool load(const std::wstring & module);
         bool load_dir(const wchar_t * path);
 
     protected:
-        std::vector<scripting::plugin::plugin_t *> _modules;
+        std::vector<scripting::plugin::Plugin *> _modules;
 };
 
 }   // namespace scripting
