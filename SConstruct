@@ -18,16 +18,22 @@ OPERATING_SYSTEM_DICT = {
         'names': ['linux', 'lin', 'lnx'],
         'python': '{ver}.a'.format(ver=PYTHON_VER),
         'CXX': 'g++',
+        'CCFLAGS': '',
+        'LINKFLAGS': '',
     },
     'mac': {
         'names': ['mac', 'osx'],
         'python': '{ver}.a'.format(ver=PYTHON_VER),
         'CXX': 'g++-5',
+        'CCFLAGS': ' -D_GLIBCXX_FULLY_DYNAMIC_STRING=1', 
+        'LINKFLAGS': '',
     },
     'windows': {
         'names': ['windows', 'win'],
         'python': '{ver}.dll'.format(ver=PYTHON_VER),
         'CXX': 'g++',
+        'CCFLAGS': '',
+        'LINKFLAGS': '',
     },
 }
 
@@ -66,11 +72,13 @@ PYTHON_LIB = os.path.join(BUILD_DIR, OPERATING_SYSTEM_DICT[operating_system]['py
 CCFLAGS = '-fno-strict-aliasing -fno-common -fdiagnostics-color=auto -fwrapv -Wall -std=c++11'
 if target == 'debug': CCFLAGS += ' -DDEBUG -g3 -ggdb3'
 else: CCFLAGS += ' -O2 -O3 -DNDEBUG -s'
+CCFLAGS += OPERATING_SYSTEM_DICT[operating_system]['CCFLAGS']
 
 env = Environment(
     CXX=OPERATING_SYSTEM_DICT[operating_system]['CXX'],
     CPPPATH=[PYTHON_PATH, os.path.join(PYTHON_PATH, 'Include'), INCLUDE_DIR],
     CCFLAGS=CCFLAGS,
+    LINKFLAGS=OPERATING_SYSTEM_DICT[operating_system]['LINKFLAGS'],
     LIBS=[
         File(PYTHON_LIB), 'pthread', 'dl', 'util', 'm',
         'sfml-graphics', 'sfml-window', 'sfml-system', 'sfml-audio',
