@@ -1,95 +1,50 @@
 #include "debug.h"
 #include "game/engine.h"
+#include "graphics/window.h"
 #include "utils/color.h"
 #include "utils/path.h"
 
-game::Engine::Engine(game::ctx_t * ctx)
-    : engine::Engine::Engine((engine::ctx_t *)ctx)
+game::Engine::Engine(std::shared_ptr<game::ctx_t> ctx)
+    : engine::Engine::Engine(ctx)
     , _audio_engine(NULL)
     , _graphics_engine(NULL)
     , _scripting_engine(NULL)
 {
-    if (!ctx)
-    {
-        DEBUG_ERROR(L"ctx is NULL\n");
-        return;
-    }
+    DEBUG_DEBUG(L"initializing game engine\n");
+
+    /* Initialize scripting engine */
+    auto scripting_engine_ctx = std::make_shared<scripting::ctx_t>();
+    scripting_engine_ctx->program_name = ctx->program_name;
+    this->_scripting_engine = std::make_shared<scripting::Engine>(scripting_engine_ctx);
+    if (!this->_scripting_engine->is_initialized()) return;
 
     /* Initialize graphics engine */
-    graphics::ctx_t graphics_engine_ctx;
-    this->_graphics_engine = new graphics::Engine(&graphics_engine_ctx);
-    if (!this->_graphics_engine)
-    {
-        DEBUG_ERROR(L"%ls%s%ls\n", COLOR_RED, strerror(errno), COLOR_END);
-        return;
-    }
-    if (!this->_graphics_engine->is_initialized())
-    {
-        delete this->_graphics_engine;
-        this->_graphics_engine = NULL;
-        return;
-    }
+    auto graphics_engine_ctx = std::make_shared<graphics::ctx_t>();
+    graphics_engine_ctx->scripting_engine = this->_scripting_engine;
+    auto window = std::make_shared<graphics::Window>(L"octo test", sf::VideoMode(800, 600));// TODO load from plugin main.py or similar
+    graphics_engine_ctx->window = window;
+    this->_graphics_engine = std::make_shared<graphics::Engine>(graphics_engine_ctx);
+    if (!this->_graphics_engine->is_initialized()) return;
     
     /* Initialize audio engine */
-    audio::ctx_t audio_engine_ctx;
-    this->_audio_engine = new audio::Engine(&audio_engine_ctx);
-    if (!this->_audio_engine)
-    {
-        DEBUG_ERROR(L"%ls%s%ls\n", COLOR_RED, strerror(errno), COLOR_END);
-        return;
-    }
-    if (!this->_audio_engine->is_initialized())
-    {
-        delete this->_audio_engine;
-        this->_audio_engine = NULL;
-        return;
-    }
+    auto audio_engine_ctx = std::make_shared<audio::ctx_t>();
+    audio_engine_ctx->scripting_engine = this->_scripting_engine;
+    this->_audio_engine = std::make_shared<audio::Engine>(audio_engine_ctx);
+    if (!this->_audio_engine->is_initialized()) return;
     
-    /* Initialize scripting engine */
-    scripting::ctx_t scripting_engine_ctx;
-    scripting_engine_ctx.program_name = ctx->program_name;
-    this->_scripting_engine = new scripting::Engine(&scripting_engine_ctx);
-    if (!this->_scripting_engine)
-    {
-        DEBUG_ERROR(L"%ls%s%ls\n", COLOR_RED, strerror(errno), COLOR_END);
-        return;
-    }
-    if (!this->_scripting_engine->is_initialized())
-    {
-        delete this->_scripting_engine;
-        this->_scripting_engine = NULL;
-        return;
-    }
-
+    // Load plugins. This is done after all the engines are initialized so that the modules' load
+    // functions can access the engines.
+    if (!this->_scripting_engine->load_plugins()) return;
+    
     this->_initialized = true;
-    DEBUG_INFO(L"game engine initialized successfully\n");
+    DEBUG_DEBUG(L"game engine initialized successfully\n");
 }
 
 game::Engine::~Engine()
 {
-    // Shut down scripting engine
-    if (this->_scripting_engine)
-    {
-        delete this->_scripting_engine;
-        this->_scripting_engine = NULL;
-    }
-
-    // Shut down audio engine
-    if (this->_audio_engine)
-    {
-        delete this->_audio_engine;
-        this->_audio_engine = NULL;
-    }
-    
-    // Shut down graphics engine
-    if (this->_graphics_engine)
-    {
-        delete this->_graphics_engine;
-        this->_graphics_engine = NULL;
-    }
-
+    DEBUG_DEBUG(L"shutting down game engine\n");
     this->_initialized = false;
-    DEBUG_INFO(L"game engine shut down\n");
+    DEBUG_DEBUG(L"game engine shut down\n");
 }
 
 bool game::Engine::run()
@@ -100,7 +55,10 @@ bool game::Engine::run()
         return false;
     }
 
-    DEBUG_INFO(L"running game engine\n");
+    DEBUG_DEBUG(L"running game engine\n");
+
+    // TODO run each engine in its own thread (if possible) and join
+    this->_graphics_engine->run();
 
     return true;
 }

@@ -1,33 +1,36 @@
 #include <vector>
 #include "debug.h"
 #include "graphics/engine.h"
+#include "utils/color.h"
 
-graphics::Engine::Engine(graphics::ctx_t * ctx)
-    : engine::Engine::Engine((engine::ctx_t *)ctx)
-    , _window(NULL)
+graphics::Engine::Engine(std::shared_ptr<graphics::ctx_t> ctx)
+    : engine::Engine::Engine(ctx)
+    , _window(ctx->window)
 {
-    std::vector<sf::VideoMode> fullscreen_modes = sf::VideoMode::getFullscreenModes();
-    if (fullscreen_modes.empty())
+    DEBUG_DEBUG(L"initializing graphics engine\n");
+
+    DEBUG_DEBUG(L"Video Mode: %ls%d%lsx%ls%d%ls@%ls%d%ls\n",
+            COLOR_WHITE, this->_window->video_mode().width, COLOR_END,
+            COLOR_WHITE, this->_window->video_mode().height, COLOR_END,
+            COLOR_WHITE, this->_window->video_mode().bitsPerPixel, COLOR_END);
+
+    // Check if the video mode is compatible
+    if (!this->_window->video_mode().isValid())
     {
-        DEBUG_ERROR(L"no fullscreen modes available\n");
+        DEBUG_ERROR(L"video mode is invalid\n");
         return;
     }
 
-    this->_window = new sf::RenderWindow(fullscreen_modes[0], L"octo test", sf::Style::Fullscreen); // TODO temporary - allow specification from config file
-
     this->_initialized = true;
-    DEBUG_INFO(L"graphics engine initialized\n");
+
+    DEBUG_DEBUG(L"graphics engine initialized\n");
 }
 
 graphics::Engine::~Engine()
 {
-    if (this->_window)
-    {
-        delete this->_window;
-        this->_window = NULL;
-    }
-        
-    DEBUG_INFO(L"graphics engine shut down successfully\n");
+    DEBUG_DEBUG(L"shutting down graphics engine\n");
+    this->_initialized = false;
+    DEBUG_DEBUG(L"graphics engine shut down successfully\n");
 }
 
 bool graphics::Engine::run(void)
@@ -38,29 +41,34 @@ bool graphics::Engine::run(void)
         return false;
     }
 
-    DEBUG_INFO(L"running game engine\n");
+    DEBUG_DEBUG(L"running graphics engine\n");
+    
+    sf::RenderWindow window(this->_window->video_mode(), this->_window->title(),
+            this->_window->style());
 
-    while (this->_window->isOpen())
+    this->_initialized = true;
+
+    while (window.isOpen())
     {
         sf::Event event;
-        while (this->_window->pollEvent(event))
+        while (window.pollEvent(event))
         {
             switch (event.type)
             {
                 case sf::Event::Closed:
-                    this->_window->close();
+                    window.close();
                     break;
                 case sf::Event::KeyPressed:
                     if (event.key.code == sf::Keyboard::Escape)
-                        this->_window->close();
+                        window.close(); // TODO abstract out to key manager that specific game registers for
                     break;
                 default:
                     break;
             }
         }
 
-        this->_window->clear(sf::Color::Black);
-        this->_window->display();
+        window.clear(sf::Color::Black);
+        window.display();
     }
 
     return true;

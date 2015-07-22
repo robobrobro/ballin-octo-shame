@@ -1,0 +1,31 @@
+#ifndef __OCTO_GRAPHICS_WINDOW_H__
+#define __OCTO_GRAPHICS_WINDOW_H__
+
+#include <SFML/Graphics.hpp>
+#include <string>
+
+namespace graphics
+{
+
+class Window
+{
+    public:
+        Window();
+        Window(const std::wstring & title, const sf::VideoMode & video_mode);
+        Window(const std::wstring & title, const sf::VideoMode & video_mode, int style);
+        ~Window();
+
+        std::wstring title() const { return _title; }
+        sf::VideoMode video_mode() const { return _video_mode; }
+        int style() const { return _style; }
+
+    protected:
+        std::wstring _title;
+        sf::VideoMode _video_mode;
+        int _style;
+};
+
+}   // namespace graphics
+
+#endif
+

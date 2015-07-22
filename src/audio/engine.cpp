@@ -1,15 +1,18 @@
 #include "debug.h"
 #include "audio/engine.h"
 
-audio::Engine::Engine(audio::ctx_t * ctx)
-    : engine::Engine::Engine((engine::ctx_t *)ctx)
+audio::Engine::Engine(std::shared_ptr<audio::ctx_t> ctx)
+    : engine::Engine::Engine(ctx)
 {
+    DEBUG_DEBUG(L"initializing audio engine\n");
     this->_initialized = true;
-    DEBUG_INFO(L"audio engine initialized\n");
+    DEBUG_DEBUG(L"audio engine initialized\n");
 }
 
 audio::Engine::~Engine()
 {
-    DEBUG_INFO(L"audio engine shut down successfully\n");
+    DEBUG_DEBUG(L"shutting down audio engine\n");
+    this->_initialized = false;
+    DEBUG_DEBUG(L"audio engine shut down successfully\n");
 }
 

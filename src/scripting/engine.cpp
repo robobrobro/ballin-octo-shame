@@ -11,23 +11,13 @@
 
 static void debug_python_info(void);
 
-scripting::Engine::Engine(scripting::ctx_t * ctx)
-    : engine::Engine::Engine((engine::ctx_t *)ctx)
+scripting::Engine::Engine(std::shared_ptr<scripting::ctx_t> ctx)
+    : engine::Engine::Engine(ctx)
 {
     wchar_t program_name[utils::path::MAX_LEN] = {0};
     PyObject *pSysPath = NULL, *pPluginsDir = NULL;
 
-    if (!ctx)
-    {
-        DEBUG_ERROR(L"ctx is NULL\n");
-        return;
-    }
-
-    if (this->_initialized)
-    {
-        DEBUG_ERROR(L"Python scripting engine already initialized\n");
-        return;
-    }
+    DEBUG_DEBUG(L"initializing scripting engine\n");
 
     if (Py_IsInitialized())
     {
@@ -48,8 +38,7 @@ scripting::Engine::Engine(scripting::ctx_t * ctx)
     /* Initialize Python interpreter */
     Py_Initialize();
     //Py_InitializeEx(0);
-    this->_initialized = true;
-    DEBUG_INFO(L"Python scripting engine initialized\n");
+    DEBUG_DEBUG(L"Python scripting engine initialized\n");
     
     /* Append plugins directory to Python's sys.path */
     pSysPath = PySys_GetObject("path");
@@ -61,13 +50,13 @@ scripting::Engine::Engine(scripting::ctx_t * ctx)
         return;
     }
 
-    std::wstring plugins_dir = utils::path::join(program_dir.c_str(), scripting::PLUGINS_DIR.c_str(), NULL); 
+    this->_plugins_path = utils::path::join(program_dir.c_str(),
+            scripting::PLUGINS_DIR.c_str(), NULL); 
     
-    pPluginsDir = PyUnicode_FromWideChar(plugins_dir.c_str(), plugins_dir.size());
+    pPluginsDir = PyUnicode_FromWideChar(this->_plugins_path.c_str(), this->_plugins_path.size());
 
     if (!pPluginsDir)
     {
-        this->_initialized = false;
         debug_python_info();
         DEBUG_ERROR(L"failed to decode plugins path\n");
         return;
@@ -76,41 +65,29 @@ scripting::Engine::Engine(scripting::ctx_t * ctx)
     if (PyList_Append(pSysPath, pPluginsDir) < 0)
     {
         Py_DECREF(pPluginsDir);
-        this->_initialized = false;
         debug_python_info();
         DEBUG_ERROR(L"failed to append plugins path to Python sys.path\n");
         return;
     }
-        
-    Py_DECREF(pPluginsDir);
     
+    Py_DECREF(pPluginsDir);
     debug_python_info();
-
-    /* Load all modules in the plugins directory */
-    if (!this->load_dir(plugins_dir))
-    {
-        this->_initialized = false;
-        DEBUG_ERROR(L"failed to load plugins\n");
-        return;
-    }
     
     this->_initialized = true;
 }
 
 scripting::Engine::~Engine()
 {
+    DEBUG_DEBUG(L"shutting down scripting engine\n");
+
     /* Destroy module list */
-    for (std::vector<scripting::plugin::Plugin *>::iterator iter = this->_modules.begin(); iter != this->_modules.end(); ++iter)
-    {
-        delete *iter;
-    }
     this->_modules.clear();
 
     /* Finalize Python interpreter */
     if (Py_IsInitialized())
     {
         Py_Finalize();
-        DEBUG_INFO(L"Python scripting engine shut down successfully\n");
+        DEBUG_DEBUG(L"Python scripting engine shut down successfully\n");
     }
 
     this->_initialized = false;
@@ -119,9 +96,9 @@ scripting::Engine::~Engine()
 bool scripting::Engine::load(const std::wstring & module)
 {
     PyObject *pModuleName = NULL, *pModule = NULL, *pResult = NULL;
-    scripting::plugin::Plugin *plugin = NULL, *other_plugin = NULL;
+    std::shared_ptr<scripting::plugin::Plugin> plugin;
         
-    DEBUG_DEBUG(L"attempting to load module %ls%ls%ls\n", COLOR_CYAN, module.c_str(), COLOR_END);
+    DEBUG_DEBUG(L"loading module %ls%ls%ls\n", COLOR_CYAN, module.c_str(), COLOR_END);
 
     if (!this->_initialized)
     {
@@ -131,14 +108,9 @@ bool scripting::Engine::load(const std::wstring & module)
 
     /* Determine if the module needs to be added to the list or reloaded */
     /* Search for the module in the module list. If it exists, reload it */
-    for (std::vector<scripting::plugin::Plugin *>::size_type idx = 0; idx < this->_modules.size(); ++idx)
+    for (auto idx = 0; idx < (int)this->_modules.size(); ++idx)
     {
-        other_plugin = this->_modules[idx];
-        if (!other_plugin)
-        {
-            DEBUG_ERROR(L"failed to get other_plugin from module list\n");
-            continue;
-        }
+        auto other_plugin = this->_modules[idx];
 
         if (!other_plugin->module())
         {
@@ -161,7 +133,7 @@ bool scripting::Engine::load(const std::wstring & module)
 
     if (!plugin)
     {
-        DEBUG_DEBUG(L"module not found: importing...\n");
+        DEBUG_DEBUG(L"module not found: importing\n");
 
         /* Convert name of the module to a Python unicode string */
         pModuleName = PyUnicode_FromWideChar(module.c_str(), module.size()); 
@@ -182,13 +154,7 @@ bool scripting::Engine::load(const std::wstring & module)
         }
        
         /* Append the module to the plugin list */
-        plugin = new scripting::plugin::Plugin(pModule, module);
-        if (!plugin)
-        {
-            DEBUG_ERROR(L"failed to allocate memory for module\n");
-            return false;
-        }
-
+        plugin = std::make_shared<scripting::plugin::Plugin>(pModule, module);
         this->_modules.push_back(plugin);
     }
     else
@@ -244,6 +210,12 @@ bool scripting::Engine::load_dir(const std::wstring & path)
     struct dirent *ent = NULL;
     bool retval = true;
 
+    if (!this->_initialized)
+    {
+        DEBUG_ERROR(L"scripting engine not initialized\n");
+        return false;
+    }
+
     wcstombs(mb_path, path.c_str(), utils::path::MAX_LEN);
 
     dir = opendir(mb_path);
@@ -253,7 +225,8 @@ bool scripting::Engine::load_dir(const std::wstring & path)
         return 0;
     }
 
-    DEBUG_DEBUG(L"scanning plugins directory\n");
+    DEBUG_DEBUG(L"scanning plugins directory %ls%ls%ls\n",
+            COLOR_WHITE, path.c_str(), COLOR_END);
     while ((ent = readdir(dir)))
     {
         std::wstring ent_name = utils::string::cstr_to_wstr(ent->d_name);
@@ -273,6 +246,24 @@ bool scripting::Engine::load_dir(const std::wstring & path)
     closedir(dir);
 
     return retval;
+}
+
+bool scripting::Engine::load_plugins(void)
+{
+    if (!this->_initialized)
+    {
+        DEBUG_ERROR(L"scripting engine not initialized\n");
+        return false;
+    }
+
+    /* Load all modules in the plugins directory */
+    if (!this->load_dir(this->_plugins_path))
+    {
+        DEBUG_ERROR(L"failed to load plugins\n");
+        return false;
+    }
+
+    return true;
 }
 
 static void debug_python_info(void)

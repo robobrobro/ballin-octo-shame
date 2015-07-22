@@ -1,6 +1,7 @@
 #ifndef __OCTO_GAME_ENGINE_H__
 #define __OCTO_GAME_ENGINE_H__
 
+#include <memory>
 #include <string>
 #include "engine/engine.h"
 #include "audio/engine.h"
@@ -18,15 +19,15 @@ struct ctx_t : public engine::ctx_t
 class Engine : public engine::Engine
 {
     public:
-        Engine(game::ctx_t * ctx);
+        Engine(std::shared_ptr<game::ctx_t> ctx);
         ~Engine();
 
         bool run();
 
     protected:
-        audio::Engine * _audio_engine;
-        graphics::Engine * _graphics_engine;
-        scripting::Engine * _scripting_engine;
+        std::shared_ptr<audio::Engine> _audio_engine;
+        std::shared_ptr<graphics::Engine> _graphics_engine;
+        std::shared_ptr<scripting::Engine> _scripting_engine;
 };
 
 }   // namespace game
