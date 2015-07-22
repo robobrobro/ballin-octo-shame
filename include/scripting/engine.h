@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "engine/engine.h"
+#include "module/module.h"
 #include "scripting/plugin.h"
 
 namespace scripting
@@ -17,6 +18,7 @@ const std::wstring PLUGINS_DIR = L"plugins";
 struct ctx_t : public engine::ctx_t
 {
     std::wstring program_name;
+    std::vector<std::shared_ptr<module::Module>> modules;
 };
 
 class Engine : public engine::Engine
@@ -32,6 +34,9 @@ class Engine : public engine::Engine
     protected:
         std::vector<std::shared_ptr<scripting::plugin::Plugin>> _modules;
         std::wstring _plugins_path;
+
+    private:
+        bool load_modules(const std::vector<std::shared_ptr<module::Module>> & modules);
 };
 
 }   // namespace scripting

@@ -1,8 +1,10 @@
 #include <Python.h>
 #include <dirent.h>
+#include <functional>
 #include <vector>
 
 #include "debug.h"
+#include "module/module.h"
 #include "scripting/plugin.h"
 #include "scripting/engine.h"
 #include "utils/color.h"
@@ -34,6 +36,10 @@ scripting::Engine::Engine(std::shared_ptr<scripting::ctx_t> ctx)
     /* Set Python interpreter's module search path */
     std::wstring builtins_dir = utils::path::join(program_dir.c_str(), scripting::BUILTINS_DIR.c_str(), NULL); 
     Py_SetPath(builtins_dir.c_str());
+
+    // Load extended C++ modules that will be embedded in the Python interpreter
+    // and provide the Python modules access to the C code.
+    if (!load_modules(ctx->modules)) return;
     
     /* Initialize Python interpreter */
     Py_Initialize();
@@ -264,6 +270,28 @@ bool scripting::Engine::load_plugins(void)
     }
 
     return true;
+}
+        
+bool scripting::Engine::load_modules(const std::vector<std::shared_ptr<module::Module>> & modules)
+{
+    if (Py_IsInitialized())
+    {
+        DEBUG_ERROR(L"python already initialized\n");    
+        return false;
+    }
+
+    bool succeeded = true;
+    for (auto iter = modules.begin(); iter != modules.end(); ++iter)
+    {
+        if (PyImport_AppendInittab(iter->name().c_str(), std::bind(&module::Module::load, iter)) < 0)
+        {
+            DEBUG_ERROR(L"failed to add module %ls%s%ls to builtin modules table\n",
+                    COLOR_WHITE, iter->name().c_str(), COLOR_END);
+            succeeded = false;
+        }
+    }
+
+    return succeeded;
 }
 
 static void debug_python_info(void)

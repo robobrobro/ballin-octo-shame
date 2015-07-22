@@ -1,5 +1,6 @@
 #include "debug.h"
 #include "game/engine.h"
+#include "game/module.h"
 #include "graphics/window.h"
 #include "utils/color.h"
 #include "utils/path.h"
@@ -15,6 +16,7 @@ game::Engine::Engine(std::shared_ptr<game::ctx_t> ctx)
     /* Initialize scripting engine */
     auto scripting_engine_ctx = std::make_shared<scripting::ctx_t>();
     scripting_engine_ctx->program_name = ctx->program_name;
+    scripting_engine_ctx->modules.push_back(std::make_shared<game::Module>());
     this->_scripting_engine = std::make_shared<scripting::Engine>(scripting_engine_ctx);
     if (!this->_scripting_engine->is_initialized()) return;
 
