@@ -1,6 +1,5 @@
 #include <Python.h>
 #include <dirent.h>
-#include <functional>
 #include <vector>
 
 #include "debug.h"
