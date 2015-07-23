@@ -1,29 +1,39 @@
-#include <functional>
 #include "game/module.h"
+#include "game/version.h"
 
-/* TODO
- * static std::shared_ptr<game::Module::Module> g_module;
- * extern "C" PyObject * version(PyObject * self, PyObject * args)
- * {
- *      return g_module->version(self, args);
- * }
- */
+static game::Module * _module = NULL;
 
-game::Module::Module() : module::Module::Module("octo")
+static PyObject * _version(PyObject * self, PyObject * args)
 {
-    using namespace std::placeholders;
+    return _module->version(self, args);
+}
+    
+static PyMethodDef _method_defs[] = {
+    {"version", _version, METH_NOARGS, "Get the version of the octo engine"},
+    {NULL, NULL, 0, NULL},
+};
 
-    static PyMethodDef methods[] = {
-        {"version", std::bind(&game::Module::version, this, _1, _2), METH_VARARGS,
-            "Get the version of the octo engine"},
-        {NULL, NULL, 0, NULL},
-    };
+static PyModuleDef _module_def = {
+    PyModuleDef_HEAD_INIT, game::NAME.c_str(), NULL, -1, _method_defs, NULL, NULL, NULL, NULL
+};
 
-    this->_methods = std::make_shared<PyMethodDef>(&methods);
+static PyObject * _init(void)
+{
+    return PyModule_Create(&_module_def);
+}
+
+game::Module::Module() : module::Module::Module(game::NAME)
+{
+    _module = this;
+}
+
+bool game::Module::load(void)
+{
+    return PyImport_AppendInittab(this->_name.c_str(), _init) != -1;
 }
 
 PyObject * game::Module::version(PyObject * self, PyObject * args)
 {
-    return PyLong_FromLong(1);
+    return Py_BuildValue("u", game::VERSION.c_str());
 }
 

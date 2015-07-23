@@ -2,7 +2,6 @@
 #define __OCTO_MODULE_H__
 
 #include <Python.h>
-#include <memory>
 #include <string>
 
 namespace module
@@ -11,13 +10,12 @@ namespace module
 class Module
 {
     public:
-        Module(const std::string & name);
-        PyObject * load(void);
+        Module(const std::string & name) : _name(name) {}
+        std::string name(void) const { return _name; }
+        virtual bool load(void) = 0;
 
     protected:
         std::string _name;
-        std::shared_ptr<PyModuleDef> _def;
-        std::shared_ptr<PyMethodDef> _methods;
 };
 
 }   // namespace module

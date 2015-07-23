@@ -283,10 +283,13 @@ bool scripting::Engine::load_modules(const std::vector<std::shared_ptr<module::M
     bool succeeded = true;
     for (auto iter = modules.begin(); iter != modules.end(); ++iter)
     {
-        if (PyImport_AppendInittab(iter->name().c_str(), std::bind(&module::Module::load, iter)) < 0)
+        auto module = *iter;
+        DEBUG_DEBUG(L"loading builtin module %ls%s%ls\n", COLOR_WHITE, module->name().c_str(), COLOR_END);
+
+        if (!module->load())
         {
             DEBUG_ERROR(L"failed to add module %ls%s%ls to builtin modules table\n",
-                    COLOR_WHITE, iter->name().c_str(), COLOR_END);
+                    COLOR_WHITE, module->name().c_str(), COLOR_END);
             succeeded = false;
         }
     }
