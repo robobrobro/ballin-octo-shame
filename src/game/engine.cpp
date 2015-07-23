@@ -1,6 +1,7 @@
 #include "debug.h"
 #include "game/engine.h"
 #include "game/module.h"
+#include "graphics/module.h"
 #include "graphics/window.h"
 #include "utils/color.h"
 #include "utils/path.h"
@@ -13,20 +14,24 @@ game::Engine::Engine(std::shared_ptr<game::ctx_t> ctx)
 {
     DEBUG_DEBUG(L"initializing game engine\n");
 
+    /* Initialize builtin scripting modules */
+    auto game_module = std::make_shared<game::Module>();
+    auto graphics_module = std::make_shared<graphics::Module>();
+
     /* Initialize scripting engine */
     auto scripting_engine_ctx = std::make_shared<scripting::ctx_t>();
     scripting_engine_ctx->program_name = ctx->program_name;
-    scripting_engine_ctx->modules.push_back(std::make_shared<game::Module>());
+    scripting_engine_ctx->modules.push_back(game_module);
+    scripting_engine_ctx->modules.push_back(graphics_module);
     this->_scripting_engine = std::make_shared<scripting::Engine>(scripting_engine_ctx);
     if (!this->_scripting_engine->is_initialized()) return;
 
     /* Initialize graphics engine */
     auto graphics_engine_ctx = std::make_shared<graphics::ctx_t>();
     graphics_engine_ctx->scripting_engine = this->_scripting_engine;
-    auto window = std::make_shared<graphics::Window>(L"octo test", sf::VideoMode(800, 600));// TODO load from plugin main.py or similar
-    graphics_engine_ctx->window = window;
     this->_graphics_engine = std::make_shared<graphics::Engine>(graphics_engine_ctx);
     if (!this->_graphics_engine->is_initialized()) return;
+    graphics_module->set_graphics_engine(this->_graphics_engine);
     
     /* Initialize audio engine */
     auto audio_engine_ctx = std::make_shared<audio::ctx_t>();

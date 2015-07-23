@@ -69,7 +69,7 @@ if target not in TARGET_CHOICES:
 BUILD_DIR = os.path.join(BUILD_DIR, target)
 PYTHON_LIB = os.path.join(BUILD_DIR, OPERATING_SYSTEM_DICT[operating_system]['python'])
 
-CCFLAGS = '-fno-strict-aliasing -fno-common -fdiagnostics-color=auto -fwrapv -Wall -std=c++11'
+CCFLAGS = '-fno-strict-aliasing -fno-common -fdiagnostics-color=auto -fwrapv -Wall -Wno-write-strings -std=c++11'
 if target == 'debug': CCFLAGS += ' -DDEBUG -g3 -ggdb3'
 else: CCFLAGS += ' -O2 -O3 -DNDEBUG -s'
 CCFLAGS += OPERATING_SYSTEM_DICT[operating_system]['CCFLAGS']

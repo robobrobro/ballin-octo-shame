@@ -1,13 +1,20 @@
 #include <vector>
 #include "debug.h"
+#include "game/module.h"
+#include "game/version.h"
 #include "graphics/engine.h"
 #include "utils/color.h"
+#include "utils/string.h"
 
 graphics::Engine::Engine(std::shared_ptr<graphics::ctx_t> ctx)
     : engine::Engine::Engine(ctx)
-    , _window(ctx->window)
 {
     DEBUG_DEBUG(L"initializing graphics engine\n");
+
+    // Set default window properties
+    std::wstring title = utils::string::cstr_to_wstr(game::NAME.c_str()) + L" " + game::VERSION;
+    this->_window = std::make_shared<graphics::Window>(title, sf::VideoMode::getDesktopMode(),
+            sf::Style::Default);
 
     DEBUG_DEBUG(L"Video Mode: %ls%d%lsx%ls%d%ls@%ls%d%ls\n",
             COLOR_WHITE, this->_window->video_mode().width, COLOR_END,
@@ -71,6 +78,19 @@ bool graphics::Engine::run(void)
         window.display();
     }
 
+    return true;
+}
+
+bool graphics::Engine::set_window_size(unsigned int width, unsigned int height) const
+{
+    if (!this->_initialized)
+    {
+        DEBUG_ERROR(L"graphics engine is not initialized\n");
+        return false;
+    }
+
+    auto video_mode = this->_window->video_mode();
+    this->_window->set_video_mode(sf::VideoMode(width, height, video_mode.bitsPerPixel));
     return true;
 }
 

@@ -57,7 +57,7 @@ PyObject * scripting::plugin::Plugin::call(const std::string & function, PyObjec
 
         if (!pResult)
         {
-            DEBUG_ERROR(L"call to module function %ls% failed\n", this->name(function).c_str());
+            DEBUG_ERROR(L"call to module function %ls failed\n", this->name(function).c_str());
             return NULL;
         }
 

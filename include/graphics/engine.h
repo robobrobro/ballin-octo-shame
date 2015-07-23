@@ -14,7 +14,6 @@ namespace graphics
 struct ctx_t : public engine::ctx_t
 {
     std::shared_ptr<scripting::Engine> scripting_engine;
-    std::shared_ptr<Window> window;
 };
 
 class Engine : public engine::Engine
@@ -24,6 +23,8 @@ class Engine : public engine::Engine
         ~Engine();
 
         bool run(void);
+
+        bool set_window_size(unsigned int width, unsigned int height) const;
 
     protected:
         std::shared_ptr<Window> _window;
