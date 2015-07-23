@@ -24,7 +24,7 @@ OPERATING_SYSTEM_DICT = {
     'mac': {
         'names': ['mac', 'osx'],
         'python': '{ver}.a'.format(ver=PYTHON_VER),
-        'CXX': 'g++-5',
+        'CXX': 'g++-4.9',
         'CCFLAGS': ' -D_GLIBCXX_FULLY_DYNAMIC_STRING=1', 
         'LINKFLAGS': '',
     },
